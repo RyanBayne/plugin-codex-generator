@@ -1,0 +1,14 @@
+<?php
+function plugincodex_get_functions( $args=array() ){
+
+	$plugin = get_option('plugin-codex_plugin');
+
+	$args = array_merge( array(
+		'functions__in'=>false,
+	),$args);
+
+	$query = new PCG_Function_Query($args);
+	return $query->
+
+}
+

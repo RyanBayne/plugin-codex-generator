@@ -1,0 +1,215 @@
+<?php
+
+class Hook_Parser {
+	private $pos =0;	
+	private $out='';
+	private $file='';
+
+// tokens which may contain multiple lines
+	private $poss_nl = array( T_WHITESPACE, T_ENCAPSED_AND_WHITESPACE, T_CONSTANT_ENCAPSED_STRING,
+		T_COMMENT, T_DOC_COMMENT, T_OPEN_TAG, T_CLOSE_TAG, T_INLINE_HTML
+	);
+
+	function __construct( $settings=array() ) {}
+	
+	function get_token() {
+		if ( ! isset($this->_tokens[$this->pos]) )
+			return false;
+
+		$token = $this->_tokens[$this->pos++];
+
+		
+		if ( is_array($token) ) {
+			if ( in_array($token[0], $this->poss_nl) )
+				$this->linenum += substr_count($token[1], "\n");
+
+			if ( $token[0] == T_WHITESPACE )
+				return $this->get_token();
+		}
+
+		return $token;
+	}
+
+	function tokenize( $data ) {
+		$data = rtrim(ltrim($data, "\r\n"));
+		$this->_tokens = token_get_all($data);
+	}
+
+	function parse( $file ) {
+		$this->file = $file;
+		$input = file_get_contents($file);
+		$this->tokenize( $input );
+		$token = $pevent = 0;
+		$hooks=array();
+		do {
+			$lpevent = $pevent;
+
+			$this->_pv_last_word = $token;
+
+			$token = $this->get_token();
+			if( isset( $token[1]) &&  $token[1] == 'apply_filters' ){
+				$hooks[] = $this->handle_hook();
+			}
+
+		} while ( $token !== false );
+		return $hooks;
+	}
+
+function handle_array_element(){
+		$opening = 0;
+		$closing = 0;
+		$function ='';
+		
+		$this->pos--;
+		$t = $this->get_token();
+		$element = $t[1];
+
+		while(  $t != ',' ) {
+
+			$t = $this->get_token();
+			$element .= is_array( $t ) ? $t[1] : $t;
+		}
+
+		return $element;
+	}
+
+	function handle_array(){
+		$array = array();
+		
+		while( $t = $this->get_token() ){
+
+			if( $t == '(' )
+				continue;
+
+			if( $t[0] == T_ARRAY ){
+				$array[] = $this->handle_array();
+			}
+			
+			if (  $t == ')' )
+				break;
+
+			$element ='';
+
+			do{
+				if( $t[0] == T_STRING )
+					$element .= $this->handle_function();
+				else
+					$element .= is_array( $t ) ? $t[1] : $t;
+
+				$peek = $this->get_peek();
+
+				if( $peek == ')' )
+					break;
+
+				$t = $this->get_token();				
+			}while( $t != ',' && $t != ')' );
+
+			$array[] = $element;
+		}
+
+		return $array;
+
+	}
+	function get_peek(){
+		$token = $this->get_token();
+		$this->pos--;
+		return $token;
+	}
+
+	function handle_object(){
+		$i=0;
+		$reset = $this->pos;
+		$this->pos--;
+
+		$object = '';
+
+		while( $i < 3 ){
+			$t = $this->get_token();
+			$object .= is_array( $t ) ? $t[1] : $t;
+			$i++;
+		}
+		//$this->pos = $reset+1;
+		return $object;
+	}
+
+	function handle_function(){
+		$opening = 0;
+		$closing = 0;
+		$function ='';
+		
+		$this->pos--;
+		$t = $this->get_token();
+		$function = $t[1];
+
+		while( $opening != $closing || $opening == 0 ) {
+
+			$t = $this->get_token();
+
+			if( $t == '(' )
+				$opening++;
+			if( $t == ')' )
+				$closing++;
+
+			$function .= is_array( $t ) ? $t[1] : $t;
+		}
+
+		return $function;
+	}
+
+	/**
+	 * Records the name and location of a hook
+	 *
+	 * @todo grab more info.
+	 */
+	function handle_hook() {
+		$hook = '';
+		$i = 0;
+		$reset = $this->pos;
+
+		$hook = array();
+		$hook['path'] =$this->file;
+
+		$this->pos--;
+		$t = $this->get_token();
+		if( !isset($t[1]) || !( $t[1] != 'apply_filters' || $t[1] != 'do_action' ) )
+			return;
+
+		if( $t[1] == 'apply_filters' )
+			$hook['type'] = 'filter';
+		else
+			$hook['type'] = 'action';
+
+		$hook['line'] =$t[2];
+		
+		$this->pos = $this->pos + 1;
+		$token = $this->get_token();
+		$hook['name'] =$token[1];
+
+		$hook['parameters'] = array();
+		while ( $t = $this->get_token() ) {
+
+			if( $t == '(' || $t == ',' )
+				continue;
+
+			if (  $t == ')' )
+				break;
+
+			$peek = $this->get_peek();
+
+			if( $peek[0] == T_OBJECT_OPERATOR ){
+				$hook['parameters'][] = $this->handle_object();
+			}
+			elseif( $t[0] == T_ARRAY ){
+				$hook['parameters'][] = $this->handle_array();
+			}elseif( $t[0] == T_STRING ){
+				$hook['parameters'][] = $this->handle_function();
+			}else{
+				
+				$hook['parameters'][] = is_array( $t ) ? $t[1] : $t;
+			}
+		}
+
+		return $hook;
+	}
+}
+

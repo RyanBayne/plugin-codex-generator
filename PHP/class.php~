@@ -1,0 +1,456 @@
+<?php
+
+class Codex_Generator extends Codex_Generator_Utility {
+
+	/**
+	 * @var string $hook_suffix holds plugin page identifier
+	 */
+	static $hook_suffix;
+
+	/**
+	 * @var string $function holds name of function being processed
+	 */
+	static $function = '';
+
+	/**
+	 * @var Codex_Generator_Functions_Table $table
+	 */
+	static $table;
+
+	static $hooks_table;
+
+	/**
+	 * Sets up plugin's hooks during initial load.
+	 */
+	static function on_load() {
+
+		self::add_method('admin_menu');
+		self::add_method('admin_init');
+		add_filter('set-screen-option',array(__CLASS__,'set_screen_option'), 10, 3);
+	}
+
+	/**
+	 * Registers plugin's admin page in Tools section.
+	 */
+	static function admin_menu() {
+
+		self::$hook_suffix = add_management_page(__('Codex Generator', 'codex_gen'), __('Codex Generator', 'codex_gen'), 'manage_options', 'codex_gen', array(__CLASS__, 'page'));
+	}
+
+	/**
+	 * Loads plugin text domain, hooks load and Ajax handler for suggest.
+	 */
+	static function admin_init() {
+
+		load_plugin_textdomain('codex_gen', false, dirname( plugin_basename( __FILE__ ) ) . '/lang/');
+		add_action('load-'.self::$hook_suffix, array(__CLASS__, 'load'));
+		add_action('wp_ajax_codex_gen_suggest', array(__CLASS__, 'suggest'));
+		add_action('wp_ajax_codex_gen_wiki', array(__CLASS__, 'wiki'));
+		self::add_method('plugin_row_meta', 10, 2);
+
+		$query = array(
+			'number' =>-1,
+			'return' => 'array',
+		);
+
+
+		if( isset($_GET['action']) && 'generate-documentation' == $_GET['action'] ){
+
+			$functions__in = isset($_GET['function']) ? $_GET['function'] : array();
+			$query['functions__in'] = array_map('trim',$functions__in);
+
+			$search = new Codex_Generator_Function_Query($query);	
+			$functions = $search->get_results();
+
+			foreach ( $functions as $function ){
+				$wiki = self::get_wiki($function);
+				$post_arr = array(
+					'post_content'=> $wiki,
+				);
+
+				if( $posts = get_posts(array('post_type'=>'page','post_status'=>'any','name'=>sanitize_title($function['name']), 'numberposts'=>1)) ){
+					//Updating the page
+					$post_arr['ID'] = $posts[0]->ID;
+					wp_update_post($post_arr);
+				}else{
+					//Creating the page
+					$post_arr = array_merge($post_arr,array(
+						'post_title'=>$function['name'],
+						'post_name'=>sanitize_title($function['name']),
+						'post_type'=>'page',
+						'post_parent'=>$post_parent,
+					));
+					$post_id = wp_insert_post($post_arr);	
+				}
+			}
+				wp_redirect(add_query_arg(array('functions__in'=>false,'action'=> false)));
+				exit();
+		}
+	}
+
+	function screen_options($options, $screen){
+		$options .='<input type="hidden" name="action" value="update-parser-options" />';
+		$options .= self::pick_plugin(); 
+		$options .= get_submit_button('Update Options','secondary','submit',false); 
+		return $options;
+	}
+
+	/**
+	 * Hooks things only necessary on plugin's page.
+	 */
+	static function load() {
+
+		self::add_method('admin_enqueue_scripts');
+		self::add_method('admin_print_styles');
+		self::add_method('admin_notices');
+		self::add_method('admin_print_footer_scripts');
+
+		//Add screen option
+		add_screen_option('per_page', array('label' => __('functions', 'codex_gen'), 'default' => 15));
+		add_filter('screen_settings', array(__CLASS__,'screen_options'), 10, 2);
+
+
+		self::$table = new Codex_Generator_Functions_Table();
+		register_column_headers(self::$hook_suffix, self::$table->get_columns());
+
+		self::$hooks_table = new Codex_Generator_Hooks_Table();
+		//register_column_headers(self::$hook_suffix.'x', self::$hooks_table->get_columns());
+	}
+
+	function set_screen_option($false, $option, $value) {
+
+		if( isset($_POST['plugin_codex_plugin']) && 'update-parser-options' == $_POST['action'] ){
+			$plugin = $_POST['plugin_codex_plugin'];
+			update_option('plugin-codex_plugin',$plugin);
+		}
+
+		if('tools_page_codex_gen_per_page' == $option)
+			return $value;
+
+		return $false;
+	}
+
+	/**
+	 * Enqueues suggest.
+	 */
+	static function admin_enqueue_scripts() {
+
+		wp_enqueue_script('suggest');
+		add_thickbox();
+	}
+
+	/**
+	 * Outputs bit of CSS for suggest dropdown.
+	 */
+	static function admin_print_styles() {
+
+		?><style type="text/css">
+		#functions-search-input { width: 200px; }
+		.top .reset { margin: 0 5px; }
+		.ac_results{ min-width: 197px; }
+		.tablenav p.search-box { float: left; }
+		.widefat .column-version { width: 10%; }
+		.widefat .column-links { text-align: left !important; }
+		.widefat .column-get { width: 10%; }
+		.bottom .button { float:left; margin: 5px 0; }
+	</style><?php
+	}
+
+	/**
+	 * Sets up suggest.
+	 */
+	static function admin_print_footer_scripts() {
+
+		?><script type="text/javascript">
+		jQuery(document).ready(function($) { $('#functions-search-input').suggest(ajaxurl + '?action=codex_gen_suggest'); });
+		</script><?php
+	}
+
+	static function plugin_row_meta($plugin_meta, $plugin_file) {
+
+		if( false !== strpos($plugin_file, basename(__FILE__)) ) {
+
+			$link = add_query_arg('page', 'codex_gen', admin_url('tools.php'));
+			$plugin_meta[] = "<a href='$link'>" . __('Tools > Plugin Codex Generator', 'codex_gen') . '</a>';
+		}
+
+		return $plugin_meta;
+	}
+
+	/**
+	 * Validates function name and generates error notices.
+	 */
+	static function admin_notices() {
+
+		if( function_exists('eaccelerator_info') ) {
+
+			/** @noinspection PhpUndefinedFunctionInspection */
+			$info = eaccelerator_info();
+
+			if( $info['cache'] )
+				add_settings_error('codex_gen', 'eaccelerator', __('eAccelerator caching needs to be disabled to access PHPDoc information.','codex_gen'));
+		}
+
+		$doc = new ReflectionFunction('wp');
+		$doc = $doc->getDocComment();
+
+		if( empty($doc['tags']) )
+			add_settings_error('codex_gen', 'phpdoc', __('Could not retrieve PHPDoc information. Check that opcode caching is disabled on server.', 'codex_gen') );
+
+		settings_errors('codex_gen');
+	}
+
+	/**
+	 * Outputs plugin's admin page.
+	 */
+	static function page() {
+
+		if( !current_user_can('manage_options') )
+			wp_die('You cannot access this page.');
+
+		?><div class="wrap"><?php
+
+		screen_icon('tools');
+		echo '<h2>'. __('Codex Generator', 'codex_gen') .'</h2>';
+
+		self::$table->prepare_items();
+
+			?>
+			<form id="functions" method="get" action="">
+				<input type="hidden" name="page" value="codex_gen" />
+				<?php self::$table->display(); ?>
+			</form>
+		</div>
+
+		<div class="wrap"><?php
+
+
+		//self::$hooks_table->prepare_items();
+
+			?>
+			<form id="functions" method="get" action="">
+				<input type="hidden" name="page" value="codex_gen" />
+				<?php //self::$hooks_table->display(); ?>
+			</form>
+		</div>
+
+	<?php
+	}
+
+
+	static function pick_plugin(){
+		$plugins = get_plugins();
+		$plugin = get_option('plugin-codex_plugin');
+
+		$return = sprintf('<strong><label for="plugin_codex_plugin"> %s </label></strong>',__('Select plugin to parse:'));
+		$return .= sprintf('<select name="plugin_codex_plugin" id="plugin_codex_plugin">');
+
+		foreach ( $plugins as $plugin_key => $a_plugin ) {
+			$return .= sprintf('\n\t<option value="%s" %s>%s</option>',
+					esc_attr($plugin_key),
+					selected($plugin,$plugin_key,false),
+					esc_html($a_plugin['Name'])
+				);
+		}
+		$return .= '</select>';
+		return $return;
+	}
+
+	/**
+	 * Ajax handler for suggest.
+	 */
+	static function suggest() {
+
+		if( !current_user_can('manage_options') )
+			die;
+
+		if( empty($_REQUEST['q']) )
+			die;
+
+		$search = new Codex_Generator_Function_Query(array(
+														  's' => self::sanitize_function_name($_REQUEST['q']),
+														  'orderby' => 'match',
+														  'number' => 15,
+													 ));
+		$functions = $search->get_names();
+
+		echo implode("\n", $functions);
+		die;
+	}
+
+	static function wiki() {
+
+		if( !current_user_can('manage_options') )
+			die;
+
+		if( empty($_REQUEST['function']) )
+			die;
+
+		$function = self::sanitize_function_name($_REQUEST['function']);
+		$data = array_pop(plugincodex_get_functions( array('functions__in'=>array($function)) ));
+		$wiki = self::get_wiki($data,false);
+		$html = plugincodex_markdown($wiki);
+		echo '<hr><h1> Preivew </h1><hr>';
+		echo $html;
+		echo '<hr><h1> MarkDown </h1><hr>';
+		echo '<br /><textarea style="width:100%;height:90%;" class="code">'.esc_textarea($wiki).'</textarea>';
+		echo '<hr><h1> HTML </h1><hr>';
+		echo '<br /><textarea style="width:100%;height:90%;" class="code">'.esc_textarea($html).'</textarea>';
+		die;
+	}
+
+	/**
+	 * Creates full wiki markup.
+	 *
+	 * @param array $data array of parsed PHPDoc data
+	 *
+	 * @return string markup for a page
+	 */
+	static function get_wiki($function, $markdown=true) {
+
+		$output = $short_desc = $long_desc = $name = $path = '';
+		$tags = $parameters = $wiki_params = array();
+		extract($function);
+
+		/* Deprecated Check */
+		if( !empty($function['deprecated']) ){
+
+			//Check if deprecated version is given
+			if( !empty($function['deprecated']['version']) ){
+				$output .= sprintf("This function has been **deprecated** since %s. ", $function['deprecated']['version']);
+			}else{
+				$output .= sprintf("This function is **deprecated**.");
+			}
+
+			//Check if replacement is given.
+			if( isset($function['deprecated']['replacement']) ){
+
+				if(  $replacement = get_posts(array('post_type'=>'page','name'=>sanitize_title($function['deprecated']['replacement']), 'numberposts'=>1))  ){
+					$url = get_permalink($replacement[0]);
+					$output .= sprintf("Use [`%s`](%s) instead.\n\n", $function['deprecated']['replacement'], $url);					
+				}else{
+					$output .= sprintf("Use `%s` instead.\n\n", $function['deprecated']['replacement']);
+				}
+
+			}else{
+				$output .= sprintf("No replacement has been specified.\n\n");
+			}
+		}
+
+		/* Description */
+		$output .= self::compile_wiki_section('## Description ', $short_desc, $long_desc)."\n";
+
+		/* Usage*/
+		$text_params = !empty($parameters) ? '$' . implode(', $', array_keys($parameters)) : '';
+		$output .= self::compile_wiki_section('## Usage ', "     <?php {$function['name']}( {$text_params} ); ?>     "."\n");
+
+		/* Parameters */
+		if( $parameters ){
+			$output .= "## Parameters \n";
+			foreach( $parameters as $param ) {
+
+				$type = isset($param['type']) ? self::type_to_string($param['type'], 'wiki') : '';
+				$description = isset($param['description']) ? $param['description'] : '';
+				$optional = $param['optional'];
+
+				if( $param['has_default'] )
+					$optional .= '|'. self::value_to_string($param['default']);
+
+				$output .= " * **{$param['name']}** ({$type}) - {$description}. ({$optional})\n";
+			}
+			$output .= "\n";
+		}
+
+		/* Return values */
+		if( !empty($tags['return']) ) {
+
+			list( $type, $description ) = self::explode(' ', $tags['return'], 2, '');
+			$type = self::type_to_string($type, 'wiki');
+			$output .="## Return Values \n\n * ({$type}) - {$description}.\n\n";
+		}
+
+		/* Since */
+		$since = !empty($tags['since']) ? $tags['since'] : false;
+		if( !empty($since) ) {
+			$output .= "\n";
+			if (strlen($since) > 3 && '.0' === substr($since, -2))
+				$since = substr($since, 0, 3);
+
+			$output .= self::compile_wiki_section('## Change Log',"Since: {$since}");
+		}
+
+		/* Location */
+		$path = str_replace(ABSPATH.'wp-content/plugins/event-organiser/','',$function['path']);
+		$url = esc_url("https://github.com/stephenh1988/Event-Organiser/tree/master/{$path}");
+		if( !empty($function['line']) )
+			$url .= '#L'.intval($function['line']);
+		//$output .="## Located \n  This function can be found in [`{$path}`]({$url}) \n";
+		$output .="## Located \n  This function can be found in `{$path}` \n";
+
+		return $output;
+	}
+
+	/**
+	 * Filters out empty arguments (out of any number passed) and joins with linebreaks if more than one left.
+	 *
+	 * @param string $title section title
+	 * @param array|string $content array of content items or multiple string item parameters
+	 *
+	 * @return string section string or empty string
+	 */
+	static function compile_wiki_section($title, $content) {
+
+		$items = is_array($content) ? $content : array_slice(func_get_args(), 1);
+		$items = array_filter($items);
+
+		if (empty($items))
+			return '';
+
+		array_unshift($items, $title);
+
+		return implode("\n\n", $items) . "\n\n";
+	}
+
+	/**
+	 * Sanitizes function name, replaces spaces with undescores.
+	 *
+	 * @param string $name
+	 *
+	 * @return string
+	 */
+	static function sanitize_function_name( $name ) {
+
+		$name = wp_kses($name, array());
+		$name = trim( $name, ' ()' );
+		$name = str_replace(' ', '_', $name);
+
+		return $name;
+	}
+
+	/**
+	 * Checks if on plugin's admin page.
+	 *
+	 * @return bool
+	 */
+	static function is_plugin_page() {
+
+		global $hook_suffix;
+
+		return $hook_suffix == self::$hook_suffix;
+	}
+
+
+	/**
+	 * Shorthand for adding methods to hooks of same name.
+	 *
+	 * @param string $method
+	 * @param int $priority
+	 * @param int $accepted_args
+	 *
+	 */
+	static function add_method($method, $priority = 10, $accepted_args = 1) {
+
+		if( method_exists(__CLASS__, $method) );
+			add_action($method, array(__CLASS__,$method), $priority, $accepted_args);
+	}
+}

@@ -1,0 +1,978 @@
+<?php
+
+class Hook_Parser {
+	public $out = array( 'classes' => array(), 'functions' => array(), 'hooks' => array() );
+
+	private $_func = array(); // current function being parsed
+	private $_class = array(); // current class being parsed
+	private $_var = array(); // current class property being parsed
+	private $_last_doc = false; // contents of last encountered docblock
+	private $_doc_template = false; // contents of last encountered docblock template
+	private $_page_doc = false; // contents of page-level docblock (if present)
+	private $_source = ''; // source of class/function being parsed
+
+	// tokens which may contain multiple lines
+	private $poss_nl = array( T_WHITESPACE, T_ENCAPSED_AND_WHITESPACE, T_CONSTANT_ENCAPSED_STRING,
+		T_COMMENT, T_DOC_COMMENT, T_OPEN_TAG, T_CLOSE_TAG, T_INLINE_HTML
+	);
+
+	private $tag_handlers = array(
+		'param' => 'param_tag_handler',
+		'return' => 'return_tag_handler',
+		'returns' => 'return_tag_handler',
+	);
+
+	function __construct( $settings ) {
+		$this->file = ltrim( str_replace( array( rtrim( WP_PATH, '/' ), '\\' ), array( '', '/' ), $settings['file'] ), '/' );
+
+		$this->linenum = 0;
+		$this->pos = 0;
+		$this->setup_event_states();
+
+		// set some defaults to stop errors, will move
+		$this->get_source = false;
+		$this->_pf_funcparam_val = false;
+		$this->_pf_in_class = false;
+		$this->_pf_quote_active = false;
+		$this->_pf_in_var = false;
+		$this->_pf_var_equals = false;
+		$this->_pf_seen_docblock = false;
+		$this->_pv_paren_count = 0;
+	}
+
+	function parse( $input ) {
+		$this->tokenize( $input );
+		$this->_event_stack = new Stack;
+		$token = $pevent = 0;
+
+		do {
+			$lpevent = $pevent;
+			$pevent = $this->_event_stack->peek();
+			if ( $lpevent != $pevent )
+				$this->_last_pevent = $lpevent;
+
+			$this->_pv_last_word = $token;
+
+			$token = $this->get_token();
+
+			var_dump( $token[0]);
+
+			if ( isset($token[0]) && $token[0] == T_FUNCTION )
+				$this->retrieve_source( $token );
+
+			if ( isset($this->event_handlers[$pevent]) ) {
+				$handle = $this->event_handlers[$pevent];
+				$this->handle_logic_bock($token, $pevent);
+			} else {
+				continue;
+			}
+		} while ( $token !== false );
+	}
+
+	/* TOKEN / EVENT HANDLERS */
+
+	function default_handler($word, $pevent) {
+		$this->check_event_push( $word, $pevent );
+		$this->check_event_pop( $word, $pevent );
+	}
+
+	function handle_access_modifier( $token, $event ) {
+		$this->backup_pos();
+		$this->_event_stack->pop();
+		// PHP5 variable with no "var" keyword
+		if ( $token[0] == T_VARIABLE )
+			$this->_event_stack->push( PARSER_EVENT_VAR );
+	}
+
+	function handle_comment( $word, $pevent ) {
+		$this->backup_pos();
+		$this->_event_stack->pop();
+	}
+
+
+	function handle_function( $token, $event ) {
+		if ( $e = $this->check_event_push($token, $event) ) {
+			if ( $e == PARSER_EVENT_FUNCTION_PARAMS && empty($this->_func) )
+				die( 'ERROR: function has no name' );
+
+			if ( $e == PARSER_EVENT_COMMENT || $e == PARSER_EVENT_FUNCTION_PARAMS || $e == PARSER_EVENT_LOGICBLOCK )
+				return;
+		}
+
+		if ( empty($this->_func) ) {
+			if ( is_string($token) && $token == '&' )
+                $this->_func['return_ref'] = true;
+			else if ( is_array($token) && $token[0] == T_STRING )
+				$this->_func['name'] = $token[1];
+
+			$this->_func['file'] = $this->file;
+			$this->_func['line'] = $this->linenum + 1;
+
+			// attach docblock
+			$docs = false;
+			if ( $this->_doc_template ) {
+				$docs = $this->merge_docs( $this->_doc_template, $this->_last_doc );
+			} else if ( $this->_last_doc ) {
+				$docs = $this->_last_doc;
+				$this->_last_doc = false;
+			}
+			if ( $docs ) {
+				$this->_func['sdesc'] = $docs['desc']['short'];
+				$this->_func['ldesc'] = $docs['desc']['long'];
+				$this->_func['tags'] = $docs['tags'];
+			}
+		} else if ( isset($this->_func['return_ref']) && is_array($token) && $token[0] == T_STRING ) {
+			$this->_func['name'] = $token[1];
+		}
+
+		if ( $this->check_event_pop($token, $event) ) {
+			$this->_func['source'] = $this->get_source(); // XXX
+
+			if ( ! isset($this->_func['tags']['ignore']) ) {
+				if ( $this->_pf_in_class )
+					$this->_class['methods'][] = $this->_func;
+				else
+					$this->out['functions'][] = $this->_func;
+			} else {
+				if ( $this->_pf_in_class )
+					wpapi_add_stat( 'ignored_method', "Ignored class method: {$this->_func['name']} in {$this->file}" );
+				else
+					wpapi_add_stat( 'ignored_function', "Ignored function: {$this->_func['name']} in {$this->file}" );
+			}
+
+			$this->_func = array();
+			unset($this->_pv_quote_data);
+		}
+	}
+
+	function end_function_param() {
+		if (isset($this->_pv_quote_data)) {
+			$this->_pv_function_data .= $this->_pv_quote_data;
+			unset($this->_pv_quote_data);
+		}
+
+		if (isset($this->_pv_function_param)) {
+			if ( isset($this->_pv_function_data) && $this->_pv_function_data != '' )
+				$this->_func['params'][$this->_pv_function_param] = $this->_pv_function_data;
+			else
+				$this->_func['params'][$this->_pv_function_param] = false;
+
+			unset($this->_pv_function_param);
+			$this->_pv_function_data       = '';
+			$this->_pf_funcparam_val       = false;
+			$this->_pv_function_param_type = null;
+		}
+	}
+
+	function handle_function_params($word, $pevent) {
+		$e1 = $this->check_event_push($word, $pevent);
+
+		if ( ! $e1 ) {
+			if (($pop = $this->check_event_pop($word, $pevent)) && $pevent == PARSER_EVENT_FUNCTION_PARAM_VAR ) {
+				// end of [typehint ]$param[= defaultval]
+				if (is_string($word) && $word == ')') {
+					$this->backup_pos();
+				}
+				$this->end_function_param();
+			} elseif ($word == '=') {
+				// about to parse the default value
+				$this->_pf_funcparam_val = true;
+			} else {
+				if ($this->_pf_funcparam_val) {
+					// parsing default value
+					if (isset($this->_pv_quote_data)) {
+						$this->_pv_function_data .= $this->_pv_quote_data;
+						unset($this->_pv_quote_data);
+					}
+					if (is_array($word)) {
+						$word = $word[1];
+					}
+					$this->_pv_function_data .= $word;
+				} else {
+					// pre-param
+					if ($pop) {
+						return;
+					}
+					if (!isset($this->_pv_function_param)) {
+						$this->_pv_function_param = '';
+					}
+					if (is_array($word) && $pevent == PARSER_EVENT_FUNCTION_PARAMS
+					) {
+						if ($word[0] == T_STRING || $word[0] == T_ARRAY) {
+							// object or array type hint
+							$this->_pv_function_param_type = $word[1];
+							return;
+						}
+						$word = $word[1];
+					}
+					$this->_pv_function_param .= $word;
+				}
+			}
+		} elseif ($e1 == PARSER_EVENT_ARRAY) {
+			//$this->_wp->setWhiteSpace(true);
+		} elseif ($e1 == PARSER_EVENT_FUNCTION_PARAM_VAR) {
+			if (!isset($this->_pv_function_param)) {
+				$this->_pv_function_param = '';
+			}
+			// we just got the $var part of the param
+			$this->_pv_function_param .= $word[1];
+		}
+	}
+
+	function handle_func_global( $token, $event ) {
+		if ( $this->check_event_pop($token, $event) )
+			return;
+
+		$this->check_event_push($token, $event);
+	}
+
+	function handle_doc_block( $token, $event ) {
+		$this->backup_pos();
+		$this->_event_stack->pop();
+		$this->parse_doc_block( $this->_pv_last_word[1] );
+	}
+
+	function handle_implements( $token, $event ) {
+		if ( $this->check_event_pop($token, $event) ) {
+			$this->backup_pos();
+			return;
+		}
+
+		if ( is_array($token) && $token[0] == T_STRING )
+			$this->_class['implements'] = $token[1];
+	}
+
+	function handle_include( $token, $event ) {
+		$this->check_event_push( $token, $event );
+		if ( $this->check_event_pop( $token, $event ) )
+			$this->_last_doc = false;
+	}
+
+	function handle_include_params( $token, $event ) {
+		$e = $this->check_event_push( $token, $event );
+		if ( $e == PARSER_EVENT_COMMENT )
+			return;
+
+		$this->check_event_pop( $token, $event );
+	}
+
+	function handle_quote($word, $pevent) {
+		if ( $this->_pv_last_word == '"' || $this->_pv_last_word == "'" && $this->_last_pevent != PARSER_EVENT_QUOTE ) {
+			$save = $word;
+			if ( is_array($word) )
+				$word = $word[1];
+			$this->_pv_quote_data   = $this->_pv_last_word . $word;
+			$this->_pf_quote_active = true;
+			$this->check_event_pop($save, $pevent);
+		} elseif ( ! $this->_pf_quote_active ) {
+			$this->_pv_quote_data = $this->_pv_last_word[1];
+			$this->_event_stack->pop();
+			$this->backup_pos();
+			return;
+		}
+		$save = $word;
+		if ( is_array($word) )
+			$word = $word[1];
+		$this->_pv_quote_data .= $word;
+		if ( $this->check_event_pop($save, $pevent) )
+			$this->_pf_quote_active = false;
+	}
+
+	function handle_logic_block($word, $pevent) {
+		// match function calls and hooks
+		if ( '(' == $word && is_array($this->_pv_last_word) && T_STRING == $this->_pv_last_word[0] ) {
+			if ( 'do_action' == $this->_pv_last_word[1] || 'apply_filters' == $this->_pv_last_word[1] )
+				$this->handle_hook();
+
+			$name = $this->_pv_last_word[1];
+			$this->_func['calls'][] = $name;
+		}
+
+		$this->check_event_push($word, $pevent);
+		if ( $this->check_event_pop($word, $pevent) ) {
+			if ( $this->_event_stack->peek() == PARSER_EVENT_FUNCTION )
+				$this->backup_pos();
+		}
+	}
+
+	function handle_var($word, $pevent) {
+		if ( ! $this->_pf_in_var ) {
+			$this->_pf_set_var_value = false;
+			$this->_pv_var_value     = null;
+		}
+
+		$this->_pf_in_var = true;
+
+		$e = $this->check_event_push($word, $pevent);
+
+		if ( $word == '=' || $word == ';' || $word == ',' ) {
+			$this->_pf_var_equals = true;
+			$this->_var = array();
+			$this->_var['name'] = $this->_pv_varname;
+		}
+
+		if ( $this->_last_pevent == PARSER_EVENT_VAR_ARRAY ) {
+			if ( isset($this->_pv_function_data) )
+				$this->_var['value'] = $this->_pv_function_data;
+
+			$this->_pf_set_var_value = true;
+			unset($this->_pv_function_data);
+		} elseif ( $this->_pf_var_equals && $word != ';' && $word != '=' && $word != ',' && ! $e ) {
+			if ( is_array($word) )
+				$word = $word[1];
+
+			$this->_pv_var_value .= $word;
+		}
+
+		if ( $word == ',' || $this->check_event_pop($word, $pevent) ) {
+			if ( ! $this->_pf_set_var_value )
+				$this->_var['value'] = $this->_pv_var_value;
+
+			if ( $this->_last_doc ) {
+				$this->_var['sdesc'] = $this->_last_doc['desc']['short'];
+				$this->_var['ldesc'] = $this->_last_doc['desc']['long'];
+				$this->_var['tags'] = $this->_last_doc['tags'];
+				$this->_last_doc = false;
+			}
+
+			$this->_class['properties'][] = $this->_var;
+
+			$this->_pf_set_var_value = false;
+			unset($this->_pv_var_value);
+			$this->_var = array();
+			$this->_pf_in_var     = false;
+			$this->_pf_var_equals = false;
+			$this->_pv_varname    = '';
+			return;
+		}
+
+		if ( $word[0] == T_VARIABLE )
+			$this->_pv_varname = $word[1];
+	}
+
+	function handle_static_var( $token, $pevent ) {
+		if ( $this->check_event_pop( $token, $pevent ) )
+			return;
+		$this->check_event_push( $token, $pevent );
+	}
+
+	function handle_static_var_value( $token, $pevent ) {
+		if ( $this->check_event_push( $token, $pevent ) )
+			return;
+		if ( $this->check_event_pop( $token, $pevent ) )
+			$this->backup_pos();
+	}
+
+	function handle_array($word, $pevent) {
+		if ( $this->check_event_push($word, $pevent) )
+			return;
+
+		if ( ! isset($this->_pv_function_data) || empty($this->_pv_function_data) )
+			$this->_pv_function_data = 'array';
+
+		// handle multi-dimensional arrays
+		if ( '(' == $word && $this->_pv_paren_count++ )
+			$this->_event_stack->push($pevent);
+
+		if ( is_array($word) )
+			$this->_pv_function_data .= $word[1];
+		else
+			$this->_pv_function_data .= $word;
+
+		if ( $this->check_event_pop($word, $pevent) )
+			$this->_pv_paren_count--;
+	}
+
+	function handle_var_array_comment( $token, $pevent ) {
+		$this->_pv_function_data .= $this->_pv_last_word[1];
+		return $this->handle_comment( $token, $pevent );
+	}
+
+	/**
+	 * Records the name and location of a hook
+	 *
+	 * @todo grab more info.
+	 */
+	function handle_hook() {
+		$hook = '';
+		$i = 0;
+		while ( $t = $this->get_token() ) {
+			$i++;
+			if ( $t == ',' || $t == ')' )
+				break;
+
+			$hook .= is_array( $t ) ? $t[1] : $t;
+		}
+		for ( $j = 0; $j < $i; $j++ ) $this->backup_pos();
+
+		$hook = $this->normalize_hook( $hook );
+		$this->_func['hooks'][] = $hook;
+		if ( ! isset( $this->out['hooks'][$hook] ) ) {
+			$this->out['hooks'][$hook] = array(
+				'name' => $hook,
+				'location' => array( $this->file . ':' . $this->linenum )
+			);
+		} else {
+			$this->out['hooks'][$hook]['location'][] = $this->file . ':' . $this->linenum;
+		}
+
+		//wpapi_log( "Hook detected: {$hook} - {$this->file}:{$this->linenum}", true );
+	}
+
+	/**
+	 * Process a hook name and return in standard format.
+	 *
+	 * @todo needs more... normalisation
+	 */
+	function normalize_hook( $hook ) {
+		$hook = trim( $hook, '"\'' );
+
+		// if ( strpos( $hook, '?' ) && strpos( $hook, ':' ) )
+
+		return $hook;
+	}
+
+	/* DOCBLOCK HELPERS */
+
+	function parse_doc_block( $docs ) {
+		if ( 0 !== strpos( $docs, '/**' ) ) {
+			$this->_event_stack->push( PARSER_EVENT_COMMENT );
+			return;
+		}
+
+		// end of docblock template
+		if ( '/**#@-*/' == $docs ) {
+			$this->_doc_template = false;
+			return;
+		}
+
+		// template or normal docblock, strip /**#@+ or /**
+		if ( strpos( $docs, '/**#@+' ) === 0 ) {
+			$dtype = '_doc_template';
+			$docs = substr( $docs, 6 );
+		} else {
+			$dtype = '_last_doc';
+			$docs = substr( $docs, 3 );
+		}
+
+		// strip */
+		$docs = substr( $docs, 0, strlen($docs) - 2 );
+
+		$lines = explode( "\n", trim($docs) );
+
+		$n = count( $lines );
+		// remove leading "* " or delete line if not present
+		// one-liners (e.g. /** @ignore */) have no extra *
+		if ( 1 != $n ) {
+			for ( $i = 0; $i < $n; $i++ ) {
+				$lines[$i] = trim( $lines[$i] );
+				if ( substr( $lines[$i], 0, 1 ) != '*' ) {
+					unset($lines[$i]);
+				} else {
+					$lines[$i] = trim( substr( $lines[$i], 1 ) );
+				}
+			}
+		} else {
+			if ( substr( $lines[0], 0, 1 ) == '*' )
+				$lines[0] = substr( $lines[0], 1 );
+		}
+
+		if ( empty($lines) || $lines == array(false) ) {
+			$this->$dtype = false;
+			return;
+		}
+
+		$lines = explode( "\n", trim( join("\n", $lines) ) );
+
+		// find position of first tag
+		for ( $i = 0; $i < count($lines); $i++ ) {
+			if ( substr($lines[$i], 0, 1) == '@' && substr($lines[$i], 0, 2) != '@ ' ) {
+				$tagindex = $i;
+				break;
+			}
+		}
+
+		// split the block into description and tags
+		if ( isset($tagindex) ) {
+			$desc = array_slice( $lines, 0, $tagindex );
+			$tags = array_slice( $lines, $tagindex );
+		} else {
+			$desc = $lines;
+			$tags = false;
+		}
+
+		$docblock = array( 'desc' => $this->handle_description( $desc ), 'tags' => $this->handle_tags( $tags ) );
+		if ( ! $this->_pf_seen_docblock && isset($docblock['tags']['package']) ) {
+			$this->_pf_seen_docblock = true;
+			$this->_page_doc = $docblock;
+		} else {
+			$this->$dtype = $docblock;
+		}
+	}
+
+	function handle_description( $lines ) {
+		if ( empty( $lines ) )
+			return array( 'short' => '', 'long' => '' );
+
+		$l_start = 0;
+		$sdesc = $ldesc = '';
+
+		for ( $i = 0; $i <= 4; $i++ ) {
+			if ( ! empty( $lines[$i] ) ) {
+				$sdesc .= $lines[$i] . ' ';
+			} else {
+				$l_start = $i + 1;
+				break;
+			}
+		}
+
+		for ( $i = $l_start; $i < count( $lines ); $i++ )
+			if ( ! empty($lines[$i]) )
+				$ldesc .= $lines[$i] . ' ';
+			else
+				$ldesc .= "\n";
+				
+		$sdesc = $this->parse_inline_tags( $sdesc );
+		$ldesc = $this->parse_inline_tags( $ldesc );
+
+		return array( 'short' => trim($sdesc), 'long' => trim($ldesc) );
+	}
+
+	function handle_tags( $lines ) {
+		if ( empty($lines) )
+			return false;
+
+		$ret = array();
+		$tags = array();
+		$curtag  = '';
+
+		for ( $i = 0; $i < count($lines); $i++ ) {
+			if ( strpos(ltrim($lines[$i]), '@') === 0 )
+				$lines[$i] = ltrim($lines[$i]);
+
+			if ( substr($lines[$i], 0, 1) == '@' && substr($lines[$i], 0, 2) != '@ ' ) {
+				// start a new tag
+				if ( ! empty($curtag) )
+					$tags[] = $curtag;
+
+				$curtag = $lines[$i];
+			} else {
+				$curtag .= "\n" . $lines[$i];
+			}
+		}
+
+		if ( ! empty($curtag) )
+			$tags[] = $curtag;
+
+		foreach ( $tags as $tag ) {
+			/*$tag = trim( str_replace("\t", ' ', $tag) );
+			$i = strpos( $tag, ' ' );
+			$tagname = substr($tag, 1, $i - 1);
+			$rest = substr($tag, $i + 1);*/
+
+			$t = explode( ' ', str_replace("\t", ' ', $tag) );
+			$tagname = trim( substr(array_shift($t), 1) );
+			$rest = trim( join( ' ', $t ) );
+
+			if ( isset($this->tag_handlers[$tagname]) ) {
+				$handler = $this->tag_handlers[$tagname];
+				$this->$handler( $rest, $ret );
+			} else {
+				$this->default_tag_handler( $tagname, $rest, $ret );
+			}
+		}
+
+		return $ret;
+	}
+
+	function merge_docs( $template, $docblock ) {
+		if ( ! $docblock )
+			return $template;
+
+		$merged = array();
+		$merged['desc']['short'] = $docblock['desc']['short'];
+		$merged['desc']['long'] = $template['desc']['long'] . $docblock['desc']['long'];
+		$merged['tags'] = array_merge( $template['tags'], $docblock['tags'] );
+		return $merged;
+	}
+
+	function parse_inline_tags( $doc ) {
+		$doc = preg_replace_callback( '/{@(link|source) (.*?)}/', array( $this, '_inline_tags_cb' ), $doc );
+		// completely ignore internals for now
+		$doc = preg_replace( '/{@internal.*}}/', '', $doc );
+		$doc = str_replace( '{@}', '{@', $doc );
+		return $doc;
+	}
+
+	function _inline_tags_cb( $matches ) {
+		switch ( $matches[1] ) {
+			case 'link': $ret = $this->_link_inline_handler( $matches[2] ); break;
+			case 'source': $ret = ''; break;
+		}
+		return $ret;
+	}
+
+	/* TAG HANDLERS */
+
+	function _link_inline_handler( $value ) {
+		$value = trim( $value );
+		if ( empty( $value ) )
+			return '';
+
+		if ( strpos( $value, '://' ) || strpos( $value, 'mailto:') === 0 ) {
+			if ( strpos( $value, ' ')) {
+				$i = strpos( $value, ' ' ) + 1;
+				$link = substr( $value, 0, $i - 1 );
+				$text = substr( $value, $i );
+				$val  = '<a href="'.$link.'">'.$text.'</a>';
+			} else {
+				$val  = '<a href="'.$value.'">'.$value.'</a>';
+			}
+		} else {
+			// @todo not actually an error, just a notice since currently not linking
+			wpapi_error_log( "NON URL LINK TAG $value in {$this->file}" ); 
+			$val = $value;
+		}
+
+		return $val;
+	}
+
+	function param_tag_handler( $tag, &$arr ) {
+		$type = $this->retrieve_datatype( $tag );
+
+		if ( ! $type ) {
+			wpapi_error_log( "MALFORMED TAG @param $tag (no datatype) in {$this->file}:{$this->linenum}" );
+			return;
+		}
+
+		// strip the datatype
+		$tag = trim( substr( $tag, strlen($type) ) );
+
+		$tag = explode( ' ', $tag );
+		$var = array_shift( $tag );
+		$desc = implode( ' ', $tag );
+		
+		if ( '$' != $var[0] && '&' != $var[0] )
+			wpapi_error_log( "MALFORMED TAG @param $tag (no parameter) in {$this->file}:{$this->linenum}" );
+
+		$arr['param'][$var] = array( 'type' => $type, 'desc' => $desc );
+	}
+
+	function return_tag_handler( $tag, &$arr ) {
+		$type = $this->retrieve_datatype( $tag );
+
+		if ( ! $type ) {
+			wpapi_error_log( "MALFORMED TAG @return $tag in {$this->file}:{$this->linenum}" );
+			return;
+		}
+
+		$desc = trim( substr( $tag, strlen($type) ) );
+		$arr['return'] = array( 'type' => $type, 'desc' => $desc );
+	}
+
+	function default_tag_handler( $name, $tag, &$arr ) {
+		$arr[$name] = $tag;
+	}
+
+	function retrieve_datatype( $tag ) {
+		$pieces = array();
+		if ( ! preg_match( '/^(object )?[a-zA-Z_]+(\|(object )?[a-zA-Z_]+)*/', $tag, $pieces ) )
+			return false;
+		else
+			return $pieces[0];
+	}
+
+	/* EVENT HELPERS */
+
+	function check_event_push( $token, $pevent ) {
+		if ( is_array($token) )
+			$token = ($token[0] == T_STRING) ? $token[1] : $token[0];
+		else
+			$token = strtolower( $token );
+
+		if ( isset($this->pushevent[$pevent][$token]) ) {
+			$this->_event_stack->push( $this->pushevent[$pevent][$token] );
+			return $this->pushevent[$pevent][$token];
+		} else {
+			return false;
+		}
+	}
+
+	function check_event_pop( $token, $pevent ) {
+		if ( is_array($token) )
+			$token = ($token[0] == T_STRING) ? $token[1] : $token[0];
+		else
+			$token = strtolower( $token );
+
+		if ( isset($this->popevent[$pevent]) && in_array( $token, $this->popevent[$pevent] ) ) {
+			return $this->_event_stack->pop();
+		} else {
+			return false;
+		}
+	}
+
+	/* TOKEN MANAGEMENT */
+
+	function tokenize( $data ) {
+		$data = rtrim(ltrim($data, "\r\n"));
+		$this->_tokens = token_get_all($data);
+	}
+
+	function get_token() {
+		if ( ! isset($this->_tokens[$this->pos]) )
+			return false;
+
+		$token = $this->_tokens[$this->pos++];
+
+		if ( $this->get_source )
+			$this->add_source( $token );
+
+		if ( is_array($token) ) {
+			if ( in_array($token[0], $this->poss_nl) )
+				$this->linenum += substr_count($token[1], "\n");
+
+			if ( $token[0] == T_WHITESPACE )
+				return $this->get_token();
+		}
+
+		return $token;
+	}
+
+	function retrieve_source( $token ) {
+		$this->_source = '';
+		$this->add_source( $token );
+		$this->get_source = true;
+	}
+
+	function get_source() {
+		$s = $this->_source;
+		$this->_source = '';
+		$this->get_source = false;
+		return $s;
+	}
+
+	function add_source( $token ) {
+		if ( is_array($token) )
+			$this->_source .= $token[1];
+		else
+			$this->_source .= $token;
+	}
+
+	function backup_pos() {
+		$this->pos--;
+		$token = $this->_tokens[$this->pos];
+
+		if ( $this->get_source ) {
+			$l = is_array($token) ? strlen($token[1]) : strlen($token);
+			$m = strlen($this->_source);
+			$this->_source = substr( $this->_source, 0, $m - $l );
+		}
+
+		if ( is_array($token) ) {
+			if ( $token[0] == T_WHITESPACE )
+				return $this->get_token();
+
+			if ( in_array($token[0], $this->poss_nl) )
+				$this->linenum -= substr_count($token[1], "\n");
+		}
+	}
+
+	function setup_event_states() {
+		$this->pushevent[PARSER_EVENT_LOGICBLOCK]  = array(
+			'{' => PARSER_EVENT_LOGICBLOCK,
+			'"' => PARSER_EVENT_QUOTE,
+			T_GLOBAL                   => PARSER_EVENT_FUNC_GLOBAL,
+			T_STATIC                   => PARSER_EVENT_STATIC_VAR,
+			T_START_HEREDOC            => PARSER_EVENT_EOFQUOTE,
+			T_CURLY_OPEN               => PARSER_EVENT_LOGICBLOCK,
+			T_DOLLAR_OPEN_CURLY_BRACES => PARSER_EVENT_LOGICBLOCK,
+		);
+		$this->popevent[PARSER_EVENT_LOGICBLOCK]  = array( '}', T_CURLY_OPEN );
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_NOEVENTS] = array(
+			T_OPEN_TAG => PARSER_EVENT_PHPCODE,
+		);
+		/**************************************************************/
+		$this->popevent[PARSER_EVENT_EOFQUOTE] = array(T_END_HEREDOC);
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_PHPCODE] = array(
+			T_FUNCTION     => PARSER_EVENT_FUNCTION,
+			T_ABSTRACT     => PARSER_EVENT_ACCESS_MODIFIER,
+			T_CLASS        => PARSER_EVENT_CLASS,
+			T_INTERFACE    => PARSER_EVENT_CLASS,
+			T_INCLUDE_ONCE => PARSER_EVENT_INCLUDE,
+			T_INCLUDE      => PARSER_EVENT_INCLUDE,
+			T_REQUIRE      => PARSER_EVENT_INCLUDE,
+			T_REQUIRE_ONCE => PARSER_EVENT_INCLUDE,
+			T_COMMENT      => PARSER_EVENT_DOCBLOCK,
+			T_DOC_COMMENT  => PARSER_EVENT_DOCBLOCK,
+			//"/**#@+"       => PARSER_EVENT_DOCBLOCK_TEMPLATE,
+			//"/**#@-*/"     => PARSER_EVENT_END_DOCBLOCK_TEMPLATE,
+			T_CLOSE_TAG    => PARSER_EVENT_OUTPHP,
+			'define' => PARSER_EVENT_DEFINE,
+		);
+		/**************************************************************/
+		$this->popevent[PARSER_EVENT_OUTPHP] = array(T_OPEN_TAG);
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_FUNCTION] = array(
+			'{' => PARSER_EVENT_LOGICBLOCK,
+			'(' => PARSER_EVENT_FUNCTION_PARAMS,
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+		);
+		$this->popevent[PARSER_EVENT_FUNCTION] = array("}",';');
+		/**************************************************************/
+		$this->popevent[PARSER_EVENT_QUOTE] = array('"');
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_FUNCTION_PARAMS] = array(
+			T_VARIABLE    => PARSER_EVENT_FUNCTION_PARAM_VAR,
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+		);
+		$this->popevent[PARSER_EVENT_FUNCTION_PARAMS]   = array(")");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_FUNCTION_PARAM_VAR] = array(
+			T_CONSTANT_ENCAPSED_STRING => PARSER_EVENT_QUOTE,
+			T_COMMENT                  => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT              => PARSER_EVENT_COMMENT,
+			T_ARRAY                    => PARSER_EVENT_ARRAY,
+			'"' => PARSER_EVENT_QUOTE,
+			"'" => PARSER_EVENT_QUOTE,
+		);
+		$this->popevent[PARSER_EVENT_FUNCTION_PARAM_VAR] = array(",", ")");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_ARRAY] = array(
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+		);
+		$this->popevent[PARSER_EVENT_ARRAY] = array(")");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_VAR_ARRAY] = array(
+			T_COMMENT     => PARSER_EVENT_VAR_ARRAY_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_VAR_ARRAY_COMMENT,
+		);
+		$this->popevent[PARSER_EVENT_VAR_ARRAY] = array(")");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_FUNC_GLOBAL] = array(
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+		);
+		$this->popevent[PARSER_EVENT_FUNC_GLOBAL] = array(";");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_STATIC_VAR] = array(
+			T_CONSTANT_ENCAPSED_STRING => PARSER_EVENT_QUOTE,
+			T_COMMENT                  => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT              => PARSER_EVENT_COMMENT,
+			"=" => PARSER_EVENT_STATIC_VAR_VALUE,
+		);
+		$this->popevent[PARSER_EVENT_STATIC_VAR] = array(";");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_STATIC_VAR_VALUE] = array(
+			T_CONSTANT_ENCAPSED_STRING => PARSER_EVENT_QUOTE,
+			T_COMMENT                  => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT              => PARSER_EVENT_COMMENT,
+			T_ARRAY                    => PARSER_EVENT_ARRAY,
+			'"' => PARSER_EVENT_QUOTE,
+			"'" => PARSER_EVENT_QUOTE,
+		);
+		$this->popevent[PARSER_EVENT_STATIC_VAR_VALUE] = array(";",",");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_DEFINE] = array(
+			T_COMMENT                  => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT              => PARSER_EVENT_COMMENT,
+			T_CONSTANT_ENCAPSED_STRING => PARSER_EVENT_QUOTE,
+			"(" => PARSER_EVENT_DEFINE_PARAMS,
+		);
+		$this->popevent[PARSER_EVENT_DEFINE] = array(";");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_INCLUDE] = array(
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+			"(" => PARSER_EVENT_INCLUDE_PARAMS,
+		);
+		$this->popevent[PARSER_EVENT_INCLUDE]   = array(";");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_DEFINE_PARAMS] = array(
+			T_COMMENT       => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT   => PARSER_EVENT_COMMENT,
+			T_START_HEREDOC => PARSER_EVENT_EOFQUOTE,
+			"(" => PARSER_EVENT_DEFINE_PARAMS_PARENTHESIS,
+			'"' => PARSER_EVENT_QUOTE,
+			"'" => PARSER_EVENT_QUOTE,
+		);
+		$this->popevent[PARSER_EVENT_DEFINE_PARAMS]   = array(")");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_INCLUDE_PARAMS] = array(
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+			"(" => PARSER_EVENT_INCLUDE_PARAMS_PARENTHESIS,
+		);
+		$this->popevent[PARSER_EVENT_INCLUDE_PARAMS]   = array(")");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_DEFINE_PARAMS_PARENTHESIS] = array(
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+			"(" => PARSER_EVENT_DEFINE_PARAMS_PARENTHESIS,
+			'"' => PARSER_EVENT_QUOTE,
+			"'" => PARSER_EVENT_QUOTE,
+		);
+		$this->popevent[PARSER_EVENT_DEFINE_PARAMS_PARENTHESIS] = array(")");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_INCLUDE_PARAMS_PARENTHESIS] = array(
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+			"(" => PARSER_EVENT_INCLUDE_PARAMS_PARENTHESIS,
+		);
+		$this->popevent[PARSER_EVENT_INCLUDE_PARAMS_PARENTHESIS] = array(")");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_VAR] = array(
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+			T_ARRAY       => PARSER_EVENT_VAR_ARRAY,
+		);
+		$this->popevent[PARSER_EVENT_VAR] = array(";");
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_CLASS_CONSTANT] = array(
+			T_COMMENT     => PARSER_EVENT_COMMENT,
+			T_DOC_COMMENT => PARSER_EVENT_COMMENT,
+			T_ARRAY       => PARSER_EVENT_VAR_ARRAY,
+		);
+		$this->popevent[PARSER_EVENT_CLASS_CONSTANT]   = array(";");
+		/**************************************************************/
+		$this->popevent[PARSER_EVENT_IMPLEMENTS] = array('{');
+		/**************************************************************/
+		$this->pushevent[PARSER_EVENT_CLASS] = array(
+			T_ABSTRACT    => PARSER_EVENT_ACCESS_MODIFIER,
+			T_PUBLIC      => PARSER_EVENT_ACCESS_MODIFIER,
+			T_PRIVATE     => PARSER_EVENT_ACCESS_MODIFIER,
+			T_PROTECTED   => PARSER_EVENT_ACCESS_MODIFIER,
+			T_STATIC      => PARSER_EVENT_ACCESS_MODIFIER,
+			T_IMPLEMENTS  => PARSER_EVENT_IMPLEMENTS,
+			T_CONST       => PARSER_EVENT_CLASS_CONSTANT,
+			T_FUNCTION    => PARSER_EVENT_FUNCTION,
+			T_VAR         => PARSER_EVENT_VAR,
+			T_COMMENT     => PARSER_EVENT_DOCBLOCK,
+			T_DOC_COMMENT => PARSER_EVENT_DOCBLOCK,
+			T_CLOSE_TAG   => PARSER_EVENT_OUTPHP,
+		);
+		$this->popevent[PARSER_EVENT_CLASS]   = array("}");
+	}
+}
+
+class Stack {
+	var $stack = array( PARSER_EVENT_NOEVENTS );
+	var $num = 0;
+
+	function push( $element ) {
+		$this->num = array_push( $this->stack, $element ) - 1;
+	}
+
+	function pop() {
+		$this->num--;
+		return array_pop( $this->stack );
+	}
+
+	function peek() {
+		return $this->stack[$this->num];
+	}
+}
