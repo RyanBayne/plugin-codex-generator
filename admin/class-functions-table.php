@@ -6,12 +6,7 @@ if (!class_exists('WP_List_Table'))
 class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 
 	function __construct() {
-
-		parent::__construct(array(
-								 'singular' => 'function',
-								 'plural' => 'functions',
-								 'ajax' => false,
-							));
+		parent::__construct(array( 'singular' => 'function', 'plural' => 'functions','ajax' => false));
     	}
 
 	function prepare_items() {
@@ -25,16 +20,18 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 		$offset = $current_page > 1 ? $per_page*($current_page-1) : 0;
 
 		$query = array(
+			'type'=>'function',
 			'number' => $per_page,
 			'return' => 'array',
 			'offset' => $offset,
 		);
 
-		foreach( array('s','orderby','order','path') as $arg )
+		foreach( array('s','orderby','order','path') as $arg ){
 			if( isset($_GET[$arg]) )
 				$query[$arg] = esc_attr($_GET[$arg]);
+		}
 
-		$search = new PCG_Function_Query($query);
+		$search = new PCG_Query($query);
 		$data = $search->get_results();
 
 		$total_items = $search->count;
@@ -46,13 +43,12 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
         	) );
 	}
 
+
 	function display_tablenav( $which ) {
 
 		printf('<div class="tablenav %s">',esc_attr( $which ));
-
 		$this->extra_tablenav( $which );
 		$this->pagination( $which );
-
 		echo '<br class="clear" />';
 		echo '</div>';
 	}
@@ -157,6 +153,7 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 			'return' => __('Return', 'codex_gen'),
 			'description' => __('Description', 'codex_gen'),
 			'version' => __('Version', 'codex_gen'),
+			'package' => __('Package','codex_gen'),
 			'file' => __('File', 'codex_gen'),
 			'get' => __('Get', 'codex_gen'),
 		);
@@ -277,6 +274,10 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
         	    /*$2%s*/ $item->name       //The value of the checkbox should be the record's id
         	);
     	}
+
+	function column_package( $item ){
+		echo $item->package;
+	}
 
 	function column_get($item) {
 

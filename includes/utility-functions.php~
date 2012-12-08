@@ -26,6 +26,11 @@ function plugincodex_get_plugin_path( $file ){
 
 
 
+function plugincodex_get_paths(){
+
+
+}
+
 /**
  * Adjust type names to forms, supported by Codex.
  *
@@ -191,4 +196,24 @@ function plugincodex_get_plugin_path( $file ){
 
 		return $version;
 	}
+
+
+
+	/**
+	 * Sanitizes function name, replaces spaces with undescores.
+	 *
+	 * @param string $name
+	 *
+	 * @return string
+	 */
+	function plugincodex_sanitize_function_name( $name ) {
+
+		$name = wp_kses($name, array());
+		$name = trim( $name, ' ()' );
+		$name = str_replace(' ', '_', $name);
+
+		return $name;
+	}
+
+	
 

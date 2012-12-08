@@ -197,3 +197,23 @@ function plugincodex_get_paths(){
 		return $version;
 	}
 
+
+
+	/**
+	 * Sanitizes function name, replaces spaces with undescores.
+	 *
+	 * @param string $name
+	 *
+	 * @return string
+	 */
+	function plugincodex_sanitize_function_name( $name ) {
+
+		$name = wp_kses($name, array());
+		$name = trim( $name, ' ()' );
+		$name = str_replace(' ', '_', $name);
+
+		return $name;
+	}
+
+	
+

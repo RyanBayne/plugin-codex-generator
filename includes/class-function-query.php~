@@ -8,199 +8,40 @@ function plugincodex_get_functions( $args=array() ){
 		'functions__in'=>false,
 	),$args);
 
-	$query = new PCG_Function_Query($args);
-	
+	$query = new PCG_Query($args);
 	return $query->get_results();
-
 }
 
-class PCG_Function{
+function plugincodex_get_hooks( $args=array() ){
 
-	var $path;
-	var $short_desc;
-	var $long_desc;
-	var $deprecated = false;
-	var $since = false;
-
-	public function get_wiki( $markdown=true) {
-		$output='';
-
-		/* Deprecated Check */
-		if( !empty($this->deprecated) ){
-
-			//Check if deprecated version is given
-			if( !empty($function->deprecated['version']) ){
-				$output .= sprintf("This function has been **deprecated** since %s. ", $function->deprecated['version']);
-			}else{
-				$output .= sprintf("This function is **deprecated**.");
-			}
-
-			//Check if replacement is given.
-			if( isset($function->deprecated['replacement']) ){
-
-				if(  $replacement = get_posts(array('post_type'=>'page','name'=>sanitize_title($function->deprecated['replacement']), 'numberposts'=>1))  ){
-					$url = get_permalink($replacement[0]);
-					$output .= sprintf("Use [`%s`](%s) instead.\n\n", $function->deprecated['replacement'], $url);					
-				}else{
-					$output .= sprintf("Use `%s` instead.\n\n", $function->deprecated['replacement']);
-				}
-
-			}else{
-				$output .= sprintf("No replacement has been specified.\n\n");
-			}
-		}
-
-		/* Description */
-		$output .= $this->compile_wiki_section('## Description ', $this->short_desc, $this->long_desc)."\n";
-
-		/* Usage*/
-		$text_params = !empty($this->parameters) ? '$' . implode(', $', array_keys($this->parameters)) : '';
-		$output .=  $this->compile_wiki_section('## Usage ', "     <?php {$this->name}( {$text_params} ); ?>     "."\n");
-
-		/* Parameters */
-		if( $this->parameters ){
-			$output .= "## Parameters \n";
-			foreach( $this->parameters as $param ) {
-
-				$type = isset($param['type']) ? plugincodex_type_to_string($param['type'], 'wiki') : '';
-				$description = isset($param['description']) ? $param['description'] : '';
-				$optional = $param['optional'];
-
-				if( $param['has_default'] )
-					$optional .= '|'. plugincodex_value_to_string($param['default']);
-
-				$output .= " * **{$param['name']}** ({$type}) - {$description}. ({$optional})\n";
-			}
-			$output .= "\n";
-		}
-
-		/* Return values */
-		if( !empty($this->doc['tags']['return']) ) {
-
-			list( $type, $description ) =plugincodex_padded_explode(' ', $this->doc['tags']['return'], 2, '');
-			$type = plugincodex_type_to_string($type, 'wiki');
-			$output .="## Return Values \n\n * ({$type}) - {$description}.\n\n";
-		}
-
-		/* Since */
-		$since = !empty($this->doc['tags']['since']) ? $this->doc['tags']['since'] : false;
-		if( !empty($since) ) {
-			$output .= "\n";
-			if (strlen($since) > 3 && '.0' === substr($since, -2))
-				$since = substr($since, 0, 3);
-
-			$output .= $this->compile_wiki_section('## Change Log',"Since: {$since}");
-		}
-
-		/* Location */
-		$path = str_replace(ABSPATH.'wp-content/plugins/event-organiser/','',$this->path);
-		$url = esc_url("https://github.com/stephenh1988/Event-Organiser/tree/master/{$path}");
-		if( !empty($this->line) )
-			$url .= '#L'.intval($this->line);
-		//$output .="## Located \n  This function can be found in [`{$path}`]({$url}) \n";
-		$output .="## Located \n  This function can be found in `{$path}` \n";
-
-		return $this->generated_content = $output;
-	}
-
-
-	function compile_wiki_section($title, $content) {
-
-		$items = is_array($content) ? $content : array_slice(func_get_args(), 1);
-		$items = array_filter($items);
-
-		if (empty($items))
-			return '';
-
-		array_unshift($items, $title);
-
-		return implode("\n\n", $items) . "\n\n";
-	}
-
-	/**
-	 * Sanitizes function name, replaces spaces with undescores.
-	 *
-	 * @param string $name
-	 *
-	 * @return string
-	 */
-	 function sanitize_function_name( $name ) {
-
-		$name = wp_kses($name, array());
-		$name = trim( $name, ' ()' );
-		$name = str_replace(' ', '_', $name);
-
-		return $name;
-	}
-
-	function update_meta( $post_id ){
-
-		$meta = array(
-			'path'=>$this->path,
-			'line'=>$this->line,
-			'short_desc'=>$this->short_desc,
-			'long_desc'=>$this->long_desc,
-			'parameters'=>$this->parameters,
-			'since'=> $this->since,
-			'deprecated' => $this->deprecated
-		);
-
-		foreach( $meta as $key => $value )
-			update_post_meta($post_id,'_plugincodex_'.$key, $value );
-
-		$parts = $this-> et_name_parts();
-
-		wp_set_object_terms( $post_id, $parts, 'pcg_stems' );
-
-	}
-
-
-	function get_name_parts(){
-		$parts = explode('_',$this->name);
-		//Filter out commen 'non entities'
-		$parts  = array_diff($parts, array('the','update','get','delete'));
-
-		$parts = apply_filters('plugincodex_function_name_parts', $parts, $this->name);
-
-		return $parts;
-	}
+	$plugin = get_option('plugin-codex_plugin');
+	$query = new PCG_Hook_Query($args);
+	return $query->get_results();
 }
 
 
-
-class PCG_Function_Query {
-
-	static $user_functions;
+class PCG_Hook_Query{
 
 	public $args;
 	public $count;
+	public $paths=array();
 
 	function __construct($args=array()) {
-
-		if( !empty($args['version_compare']) )
-			$args['version_compare'] = self::sanitize_compare($args['version_compare']);
-
 		$this->args = wp_parse_args($args, array(
-											 's' => false,
-											 'match' => 'fuzzy',
-											 'version' => false,
-											 'version_compare' => '=',
+											'type'=>'function',
 											 'path' => false,
-											'functions__in'=>array(),
+											'hooks__in'=>array(),
 											 'orderby' => 'name',
 											 'order' => 'asc',
 											 'number' => -1,
 											 'offset' => 0,
-											 'return' => 'name',
-											'skip_private'=>true,
-											'functions__in'=>false,
 										   ));
-
-
 	}
+
 
 	function get_results() {
 		$args = $this->args;
+		extract($this->args);
 
 		/* Get plugin fiels */
 		$plugin = get_option('plugin-codex_plugin');
@@ -215,13 +56,106 @@ class PCG_Function_Query {
 			}
 		}
 
+		//Get absolute paths to file
+		$files = apply_filters('plugincodex_relative_plugin_paths', $files, $plugin, $args);
+		$files = array_filter( plugincodex_get_plugin_path($files) ,'plugincodex_filter_php_file');
+		$files = apply_filters('plugincodex_absolute_plugin_paths', $files, $plugin, $args);
+			
+		//Parse files
+		$results =array();
+		$parse = new PCG_Hook_Parser();
+		foreach( $files as $file ){
+			$parse->parse_file($file);
+		}
+
+		//Collect data
+		$results = $parse->hooks;
+		$this->count = count($results);
+		foreach( $results as $hook ){
+			$this->paths = array_merge($this->paths, wp_list_pluck($hook->location,'path'));
+		}
+		$this->paths = array_unique($this->paths);
+		$this->paths = array_map('plugincodex_sanitize_path',$this->paths);
+
+		//Filter results
+		$results = array_filter($results, array(&$this,'array_filter'));
+
+		//Limit query
+		if ($args['number'] > 0)
+			$results = array_slice($results, $args['offset'], $args['number']);
+
+		return $results;
+	}
+
+	function array_filter($hook) {
+		$args = $this->args;
+		if( !empty($args['hooks__in']) && !in_array($hook->name, $args['hooks__in']) ){
+			return false;
+		}
+
+		return true;
+	}
+
+}
+
+
+
+class PCG_Query {
+
+	static $user_functions;
+
+	public $args;
+	public $count;
+
+	function __construct($args=array()) {
+
+		if( !empty($args['version_compare']) )
+			$args['version_compare'] = self::sanitize_compare($args['version_compare']);
+
+		$this->args = wp_parse_args($args, array(
+											'type'=>'function',
+											 's' => false,
+											 'match' => 'fuzzy',
+											 'version' => false,
+											 'version_compare' => '=',
+											 'path' => false,
+											'functions__in'=>array(),
+											 'orderby' => 'name',
+											 'order' => 'asc',
+											 'number' => -1,
+											 'offset' => 0,
+											 'return' => 'name',
+											'skip_private'=>true,
+											'functions__in'=>false,
+										   ));
+	}
+
+
+	function get_results() {
+		$args = $this->args;
+		extract($this->args);
+
+		/* Get plugin fiels */
+		$plugin = get_option('plugin-codex_plugin');
+		require_once(ABSPATH . 'wp-admin/includes/plugin.php');
+		$files = get_plugin_files($plugin);
+
+		/* Filter plug-in files */
+		if( $args['path'] ){
+			foreach( $files as $i => $file ){
+				if( strpos($file, $args['path']) !== 0 )
+					unset($files[$i]);
+			}
+		}
 
 		//Get absolute paths to file
+		$files = apply_filters('plugincodex_relative_plugin_paths', $files, $plugin, $args);
 		$files = array_filter( plugincodex_get_plugin_path($files) ,'plugincodex_filter_php_file');
+		$files = apply_filters('plugincodex_absolute_plugin_paths', $files, $plugin, $args);
 			
 		$results =array();
 		foreach( $files as $file ){
-			$new_results = self::parse_file($file);
+			$new_results = $this->parse_file_functions($file);
 			if( $new_results )
 				$results = array_merge($results, $new_results );
 		}
@@ -241,17 +175,18 @@ class PCG_Function_Query {
 		return $results;
 	}
 
-	function parse_file( $file ){
+
+	function parse_file_functions( $file ){
 		extract($this->args);
 		try{
 			$reflect = new PHP_Reflect();
-		    	$reflect->scan($file);
-
+			$reflect->scan($file);
+		    	$this->reflect = $reflect;
+			$_functions = $reflect->getFunctions();
+			$this->page_package = $this->get_page_package();
 		} catch (Exception $e) {
 			    continue;
 		}
-
-		$_functions = $reflect->getFunctions();
 
 		if( !$_functions )
 			return array();
@@ -274,17 +209,63 @@ class PCG_Function_Query {
 		return $functions;
 	}
 
+	function get_page_package(){
+
+			//Hack to get page-level doc: reflect::tokens has been changed from protected to achieve this
+			$tokens = $this->reflect->tokens;
+
+			$docblocs = 0;
+			$docComment ='';
+			foreach( $tokens as $token ){
+
+				if( 'T_DOC_COMMENT' == $token[0] ){
+					if( 0 == $docblocs )
+						$docComment = $token[1];
+		
+					$docblocs++;
+				}	
+		
+				if( 'T_FUNCTION' == $token[0] )
+					break;
+			}
+
+			if( $docblocs > 1 ){
+				$result = array(
+			            'fullPackage' => '',
+			            'package'     => '',
+			            'subpackage'  => ''
+				);
+				if (preg_match('/@package[\s]+([\.\-\w]+)/', $docComment, $matches)) {
+					$result['package']     = $matches[1];
+					$result['fullPackage'] = $matches[1];
+	        		}
+
+				if (preg_match('/@subpackage[\s]+([\.\-\w]+)/', $docComment, $matches)) {
+					$result['subpackage']   = $matches[1];
+					$result['fullPackage'] .= '.' . $matches[1];
+	        		}
+				return $result['package'];		
+			}
+			return false;
+	}
+
+
 	function parse_function( $_function ){
 		$function = new PCG_Function();
 		$function->path = isset($_function['file']) ? plugincodex_sanitize_path($_function['file']): false;
 		$function->line = absint($_function['startLine']);
-	
 
 		/* Parse the docblock and merge into details from PHPReflect */
 		$doc = $_function['docblock'];
 		$doc = Codex_Generator_Phpdoc_Parser::parse_doc($doc);
 		$function->has_doc = !empty($doc);
 		$function->doc = $doc;
+		$function->long_desc = isset($doc['long_desc']) ? $doc['long_desc'] : '';
+		$function->short_desc = isset($doc['short_desc']) ? $doc['short_desc'] : '';
+
+		if( $this->page_package )
+			$function->package = $this->page_package;
+
 		/* //TODO $function = array_merge($function, $doc); */
 
 		/* Parse params from PHPReflect and merge with details from the docblock */
@@ -366,6 +347,9 @@ class PCG_Function_Query {
 				return false;
 		}
 
+		if( isset($function->doc['tags']['ignore']) )
+			return false;
+
 		if( !empty($this->args['version']) )
 			if( empty($function['tags']['since']) )
 				return false;
@@ -413,5 +397,173 @@ class PCG_Function_Query {
 		}
 
 		return 0;
+	}
+}
+
+
+class PCG_Hook_Parser{
+
+	var $pos = 0;
+	var $hooks = array();
+
+	function parse_file( $file ){
+		$this->pos=0;
+		$this->tokens = token_get_all(file_get_contents($file));
+		$this->file = $file;
+		$total = count($this->tokens);
+
+		while( $this->pos < $total ){
+			$token = $this->tokens[$this->pos];
+			if( is_array($token) ){
+				$t = (int) $token[0];
+
+				if( token_name($t) == 'T_STRING' && ( 'do_action' === $token[1] || 'apply_filters' === $token[1] ) ){
+					$hook= $this->parse_hook();
+					$name = trim($hook->name);
+					if( !isset($this->hooks[$name]) ){
+						//Make location an array of arrays (hooks can be called more than once)
+						$hook->location = array($hook->location);
+						$this->hooks[$name] = (object) $hook;
+					}else{
+						//Hook already recorded, just add location
+						$this->hooks[$hook->name]->location[] = $hook->location;
+					}
+				}
+			}
+			$this->pos++;
+		}
+	}
+
+	function parse_hook(){
+		$hook= new PCG_Hook();
+		/* Get type */
+		$token = $this->tokens[$this->pos];
+
+		$hook->type = ( 'do_action' == $token[1] ? 'action' : 'filter' );
+		$line = $token[2];
+		$path = $this->file;
+		$hook->location = compact('line','path');
+
+		$this->pos++;//Left paranthesis
+
+		/* Get name */
+		while ( $token != ',' && $token !=')' ){
+			$this->pos++;
+
+			$token = $this->tokens[$this->pos];
+
+			if( is_array($token) && token_name($token[0]) == 'T_WHITESPACE' )
+				continue;
+
+			if( is_array($token) )
+				$hook->name .= $token[1];
+			elseif( $token != ',' && $token !=')' )
+				$hook->name .= $token;
+
+			if( $token == ')' )
+				$this->pos--;
+		}
+		$hook->name = trim($hook->name ,"'\"'");
+
+		$left_paran = 1;
+		$right_paran = 0;
+		while ( $left_paran != $right_paran ){
+			$this->pos++;
+
+			$token = $this->tokens[$this->pos];
+
+			if( is_array($token) && token_name($token[0]) == 'T_WHITESPACE' )
+				continue;
+
+			if( is_array($token) ){
+				$type = token_name((int)$token[0]);
+			}else{
+				$type = $token;
+			}
+
+			if( $type == '.' ){
+				$hook->arguments[] = '.';
+
+			}elseif( in_array($type, array('T_LNUMBER', 'T_VARIABLE')) ){
+				$argument = trim($token[1],'\'"');
+				$this->pos++;
+				if( is_array($this->tokens[$this->pos]) &&  '->' == $this->tokens[$this->pos][1] ){
+					$this->pos++;
+					$argument.='->'.$this->tokens[$this->pos][1];
+					$this->pos++;
+				}
+				$this->pos--;
+				$hook->arguments[] = esc_html($argument);
+
+			}elseif( 'T_CONSTANT_ENCAPSED_STRING' == $type ){
+				$hook->arguments[] = esc_html("'".trim($token[1],'\'"')."'");
+	
+			}elseif( $type == 'T_ARRAY' ){
+				$hook->arguments[] = $type;			
+				$left_paran_arr = 0;
+				$right_paran_arr = 0;
+				$this->pos++;
+				$_token = $this->tokens[$this->pos];
+
+				if( $_token == '(' )
+						$left_paran_arr++;
+				
+				$k=0;
+				while ( $left_paran_arr != $right_paran_arr && $k<50 ){
+					$this->pos++;
+
+					$_token = $this->tokens[$this->pos];
+					if( $_token == '(' )
+						$left_paran_arr++;
+
+					if( $_token == ')' )
+						$right_paran_arr++;
+
+					$k++;
+				}
+			}elseif( $type == 'T_STRING' ){
+				//Functions
+				$argument = trim($token[1],'\'"');
+				$left_paran_arr = 0;
+				$right_paran_arr = 0;
+
+				$this->pos++;
+				$_token = $this->tokens[$this->pos];
+
+				if( $_token == '(' ){
+					$argument .= $_token;
+					$left_paran_arr++;
+					while ( $left_paran_arr != $right_paran_arr ){
+						$this->pos++;
+
+						$_token = $this->tokens[$this->pos];
+						if( $_token == '(' )
+							$left_paran_arr++;
+
+						if( $_token == ')' )
+							$right_paran_arr++;
+					}
+					$argument .= '...'.$_token;
+				}else{
+					$this->pos--;
+				}
+
+				$hook->arguments[] = trim($argument);
+			}
+
+			if( !empty($hook->arguments) ){
+				$args = implode(',', $hook->arguments );
+				$args = str_replace(',.','.', $args);
+				$args = str_replace('.,','.', $args);
+				$hook->arguments = explode(',', $args);
+			}
+
+			if( $token == '(' )
+				$left_paran++;
+
+			if( $token == ')' )
+				$right_paran++;
+		}
+		return $hook;
 	}
 }

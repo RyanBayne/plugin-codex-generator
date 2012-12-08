@@ -97,7 +97,7 @@ class PCG_Related_Function_Widget extends WP_Widget {
 
 	function related_clauses( $clauses, $q ){
 		$clauses['fields'] .=', COUNT( wp_term_relationships.object_id) AS r';
-		$clauses['orderby'] .='r '.$q->get('order');
+		$clauses['orderby'] ='r '.$q->get('order');
 		return $clauses;
 	}
 

@@ -49,7 +49,7 @@ class PCG_Related_Function_Widget extends WP_Widget {
 
 				global $post;
 				foreach( $posts as $post ): setup_postdata($post);
-					printf('<li><a href="%s>" title="%s">%s</a></li>',
+					printf('<li><a href="%s" title="%s">%s</a></li>',
 						get_permalink(),
 						esc_attr(get_the_title()),
 						get_the_title()
