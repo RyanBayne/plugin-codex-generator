@@ -296,7 +296,8 @@ class PCG_Query {
 		if( $this->page_package )
 			$function->package = $this->page_package;
 
-		/* //TODO $function = array_merge($function, $doc); */
+		if( !empty($function->doc['tags']['package'] ) )
+			$function->package = $function->doc['tags']['package'];
 
 		/* Parse params from PHPReflect and merge with details from the docblock */
 		$params = Codex_Generator_Phpdoc_Parser::parse_params( $_function['arguments'] );

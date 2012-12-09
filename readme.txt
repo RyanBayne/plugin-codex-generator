@@ -15,8 +15,8 @@ Creating and maintaining documentation pages for your plug-in can be tedious. Th
 
 To create documentation for you plug-in follow these easy steps:
 
-1. Ensure the plug-in is located in your `wp-content` folder
-2. Go to the 'functions' or 'hooks' submenu page underneath 'Plug-in Codex', click screen options and select your plug-in.
+1. Ensure the plug-in you wish to document is located in your `wp-content` folder and properly documenated according to [PHPDoc](http://en.wikipedia.org/wiki/PHPDoc).
+2. Go to the 'functions' or 'hooks' submenu page underneath 'Plug-in Docs', click screen options and select your plug-in.
 3. Select which functions (or hooks) you wish to document and click 'Generate documentation'.
 4. Posts of `pcg_function` or `pcg_hook` type will be created for each function/hook. If the page already exists, it shall be updated.
 5. The generated or updated posts shall appear under 'Function pages' and 'Hook pages' respectively.
@@ -26,6 +26,8 @@ The content of the generated posts will be automatically overwritten each time y
 **This plug-in does not currently document classes**
 
 Hooks are provided. In fact you can view the available hooks by going to the 'hooks' page and selecting Plug-in Codex Generator from the screen options. These hooks include a couple of filters that allow you to add or remove files that are parsed. 'Whitelisting' the plug-in files you want parsed will generally improve performance. 
+
+**Functions with the tags @ignore or '@access private' are ignored by the plug-in**
 
 == Installation ==
 
