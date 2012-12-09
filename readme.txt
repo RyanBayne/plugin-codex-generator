@@ -25,6 +25,8 @@ The content of the generated posts will be automatically overwritten each time y
 
 **This plug-in does not currently document classes**
 
+Hooks are provided. In fact you can view the available hooks by going to the 'hooks' page and selecting Plug-in Codex Generator from the screen options. These hooks include a couple of filters that allow you to add or remove files that are parsed. 'Whitelisting' the plug-in files you want parsed will generally improve performance. 
+
 == Installation ==
 
 1. Upload `plugin-codex-generator` folder to the `/wp-content/plugins/` directory

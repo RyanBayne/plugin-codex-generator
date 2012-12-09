@@ -9,9 +9,17 @@ Version: 1.0
 Text Domain: plugincodexgen
 License Notes: GPLv2 or later
 */
-//TODO
-//Classes
-//Improved UI
+
+/* 
+ * Known Issues
+ *
+ * Not confirmed, but a filter with array($this,'callback') or array(__CLASS__,'callback') as an argument will just be interpreted as $array.
+ * When applying a filter callback to $this from within a class. The generated docs will just have '$this' as an argument - would be nice to treat it
+ * differently from a normal variable. But this is not easy.
+ * Classes and their methods are not uspported
+ * Although you can generate documents for multiple plug-ins, there is currently no way of discerning them once the documents are generated. This would need
+ * a extra taxonomy for pcg_hook & pcg_function.
+*/
 
 //Define constants
 define('PLUGIN_CODEX_GENERATOR_LINK', add_query_arg(array('page'=> 'plugincodexgen','post_type'=>'pcg_function'), admin_url('edit.php')));
