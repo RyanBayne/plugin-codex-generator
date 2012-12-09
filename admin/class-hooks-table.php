@@ -16,7 +16,10 @@ class Plugin_Codex_Generator_Hooks_Table extends WP_List_Table {
 
 	function prepare_items() {
 
-		$per_page = (int) get_user_option( 'pcg_per_page');
+		$screen = get_current_screen();
+		//Screen options use screen ID with '-' replaced by '_'.
+		$screen_id = str_replace('-','_',$screen->id);
+		$per_page = (int) get_user_option( $screen_id.'_per_page');
 
 		if( empty($per_page) )
 			$per_page = 20;

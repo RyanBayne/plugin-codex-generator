@@ -11,7 +11,8 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 
 	function prepare_items() {
 
-		$per_page = (int) get_user_option( 'pcg_per_page');
+		$screen = get_current_screen();
+		$per_page = (int) get_user_option( $screen->id.'_per_page');
 
 		if( empty($per_page) )
 			$per_page = 20;

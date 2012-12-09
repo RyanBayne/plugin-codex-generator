@@ -63,7 +63,7 @@ class PCG_Admin_Page_Hooks {
 			update_option('plugin-codex_plugin',$plugin);
 		}
 
-		if('tools_page_plugincodexgen_per_page' == $option)
+		if('pcg_function_page_plugincodexgen_hooks_per_page' == $option)
 			return $value;
 
 		return $false;
