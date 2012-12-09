@@ -28,7 +28,7 @@ class PCG_Hook_Query{
 
 	function __construct($args=array()) {
 		$this->args = wp_parse_args($args, array(
-											'type'=>'function',
+											'type'=>false,
 											 'path' => false,
 											'hooks__in'=>array(),
 											 'orderby' => 'name',
@@ -36,6 +36,9 @@ class PCG_Hook_Query{
 											 'number' => -1,
 											 'offset' => 0,
 										   ));
+
+		if( !empty($this->args['type']) )
+			$this->args['type'] = ( strtolower($args['type']) == 'action' ? 'action' : 'filter' );
 	}
 
 
@@ -68,8 +71,12 @@ class PCG_Hook_Query{
 			$parse->parse_file($file);
 		}
 
-		//Collect data
 		$results = $parse->hooks;
+
+		//Filter results
+		$results = array_filter($results, array(&$this,'array_filter'));
+
+		//Collect data
 		$this->count = count($results);
 		foreach( $results as $hook ){
 			$this->paths = array_merge($this->paths, wp_list_pluck($hook->location,'path'));
@@ -77,8 +84,11 @@ class PCG_Hook_Query{
 		$this->paths = array_unique($this->paths);
 		$this->paths = array_map('plugincodex_sanitize_path',$this->paths);
 
-		//Filter results
-		$results = array_filter($results, array(&$this,'array_filter'));
+		//Sort
+		usort($results, array(&$this, 'usort'));
+
+		if ('desc' == $args['order'])
+			$results = array_reverse($results);
 
 		//Limit query
 		if ($args['number'] > 0)
@@ -93,7 +103,29 @@ class PCG_Hook_Query{
 			return false;
 		}
 
+		if( !empty($args['type']) && $hook->type !=$args['type'] ){
+			return false;
+		}
 		return true;
+	}
+
+	function usort($first, $second) {
+
+		switch( $this->args['orderby'] ) {
+
+			case 'name':
+				return strcmp($first->name, $second->name);
+			break;
+
+			case 'arguments':
+				if( count($first->arguments) == count($second->arguments) )
+					return 0;
+	
+				return count($first->arguments) > count($second->arguments) ? 1 : -1;
+			break;
+		}
+
+		return 0;
 	}
 
 }
@@ -113,7 +145,6 @@ class PCG_Query {
 			$args['version_compare'] = self::sanitize_compare($args['version_compare']);
 
 		$this->args = wp_parse_args($args, array(
-											'type'=>'function',
 											 's' => false,
 											 'match' => 'fuzzy',
 											 'version' => false,
@@ -126,7 +157,6 @@ class PCG_Query {
 											 'offset' => 0,
 											 'return' => 'name',
 											'skip_private'=>true,
-											'functions__in'=>false,
 										   ));
 	}
 

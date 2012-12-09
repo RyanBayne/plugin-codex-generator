@@ -28,13 +28,12 @@ class Plugin_Codex_Generator_Hooks_Table extends WP_List_Table {
 		$offset = $current_page > 1 ? $per_page*($current_page-1) : 0;
 
 		$query = array(
-			'type'=>'hook',
 			'number' => $per_page,
 			'return' => 'array',
 			'offset' => $offset,
 		);
 
-		foreach( array('s','orderby','order','path') as $arg )
+		foreach( array('s','orderby','order','path','type') as $arg )
 			if( isset($_GET[$arg]) )
 				$query[$arg] = esc_attr($_GET[$arg]);
 
@@ -136,7 +135,7 @@ class Plugin_Codex_Generator_Hooks_Table extends WP_List_Table {
 	}
 
 	function reset_button() {
-		$link = PLUGIN_CODEX_GENERATOR_LINK;
+		$link = add_query_arg('page','plugincodexgen-hooks',PLUGIN_CODEX_GENERATOR_LINK);
 		$anchor = __('Reset', 'codex_gen');
 		echo "<a href='{$link}' class='reset'>{$anchor}</a>";
 	}
@@ -155,8 +154,7 @@ class Plugin_Codex_Generator_Hooks_Table extends WP_List_Table {
 	function get_sortable_columns() {
         	$sortable_columns = array(
         	    'name'     => array('name', empty( $_GET['orderby'] ) ),
-        	    'version'    => array('version',false),
-        	    'file'    => array('file',false),
+        	    'arguments'    => array('arguments',false),
         	);
         	return $sortable_columns;
 	    }
@@ -168,7 +166,7 @@ class Plugin_Codex_Generator_Hooks_Table extends WP_List_Table {
 	}
 
 	function column_type($item) {
-		return $item->type;
+		return sprintf('<a href="%s"> %s </a>', add_query_arg('type',$item->type), $item->type );
 	}
 
 
