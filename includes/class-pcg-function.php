@@ -133,10 +133,11 @@ class PCG_Function{
 		}
 
 		/* Location */
+		$path = $this->path;
 		if( !empty($this->line) )
-			$url .= '#L'.intval($this->line);
+			$path .= ' ('.__('line:').' '.$this->line.')';
 
-		$wiki .="<h3>Located</h3> \n  This function can be found in <code>{$this->path}</code> \n";
+		$wiki .="<h3>Located</h3> \n  This function can be found in <code>{$path}</code> \n";
 
 		return $this->generated_content = $wiki;
 	}
