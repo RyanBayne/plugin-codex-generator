@@ -37,7 +37,11 @@ class Codex_Generator_Phpdoc_Parser {
 
 		if( isset($output['tags']['deprecated']) ){
 	        	//If function is superceded by a new one, this should be marked with @see
-                	$replacement = isset($output['tags']['see']) ? $output['tags']['see'] : false;
+			if( isset($output['tags']['see']) ){
+				$replacement = is_array($output['tags']['see']) ? $output['tags']['see'][0] : $output['tags']['see'];
+			}else{
+	                	$replacement = false;
+			}
        
 			//Note: $output['tags']['deprecated'] will be TRUE if @deprecated tag is present but has no value
                 	$value = is_string($output['tags']['deprecated']) ? $output['tags']['deprecated'] : false;

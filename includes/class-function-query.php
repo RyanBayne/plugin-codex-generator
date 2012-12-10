@@ -279,6 +279,27 @@ class PCG_Query {
 			return false;
 	}
 
+	function parse_tag( $tag, $value ){
+		if( !is_array($value) )
+			$value = array($value);
+
+		switch( $tag ):
+			case 'link':
+				foreach( $value as $i => $link ){
+					$link = explode(' ', trim($link));
+					$url = array_shift($link);
+					$description = implode(' ',$link);
+					if( empty($description ) )
+						$description = $url;
+					$value[$i] = compact('url','description');
+				}
+			break;
+
+		endswitch;
+
+		return $value;
+	}
+
 
 	function parse_function( $_function ){
 		$function = new PCG_Function();
@@ -295,23 +316,36 @@ class PCG_Query {
 
 		if( $this->page_package )
 			$function->package = $this->page_package;
-
 		if( !empty($function->doc['tags']['package'] ) )
-			$function->package = $function->doc['tags']['package'];
+			$function->{$tag} = $function->doc['tags']['package'];
+
+		$tags = array('see','uses','used-by','link');
+		foreach( $tags as $tag ){
+			if( !empty($function->doc['tags'][$tag] ) ){
+				$_tag = str_replace('-','_', $tag);
+				$function->{$_tag} = $this->parse_tag($tag, $function->doc['tags'][$tag] );
+			}
+		}
 
 		/* Parse params from PHPReflect and merge with details from the docblock */
 		$params = Codex_Generator_Phpdoc_Parser::parse_params( $_function['arguments'] );
 		$function->parameters = Codex_Generator_Phpdoc_Parser::merge_params( $params, $doc['tags']['param']);		
-		//unset($function['tags']['param']);
+
 
 		/* Handle the @deprecated tag */
 		if( isset($function->doc['tags']['deprecated']) ){
+			$doc_tags = $function->doc['tags'];
 
 			//If function is superceded by a new one, this should be marked with @see
-			$replacement = isset($function->doc['tags']['see']) ? trim($function->doc['tags']['see'],'()') : false;
+			if( isset($doc_tags['see']) ){
+				$replacement = is_array($doc_tags['see']) ? $doc_tags['see'][0] : $doc_tags['see'];
+				$replacement = trim($replacement,'()');
+			}else{
+	                	$replacement = false;
+			}
 				       
 			//Note: $output['tags']['deprecated'] will be TRUE if @deprecated tag is present but has no value
-			$value = is_string($function->doc['tags']['deprecated']) ? $function->doc['tags']['deprecated'] : false;
+			$value = is_string($doc_tags['deprecated']) ? $doc_tags['deprecated'] : false;
 			list($version, $description) = plugincodex_explode(' ', $value, 2, false);
 			
 			if( $version )
@@ -330,7 +364,7 @@ class PCG_Query {
 				$function->since = $version;
 			}
 		}
-		Codex_Generator_Phpdoc_Parser::$paths[] = $function->path;
+
 		return $function;		
 	}
 

@@ -9,10 +9,10 @@ class PCG_Hook{
 	var $location=false;
 
 	function get_wiki(){
-		$output='';
+		$wiki='';
 
 		/* Usage */
-		$output .= '<h3> Usage </h3>';
+		$wiki .= '<h3> Usage </h3>';
 
 		$function = ( $this->type == 'action' ? 'add_action' : 'apply_filter' );
 		$args = count($this->arguments);
@@ -20,7 +20,7 @@ class PCG_Hook{
 		$return = ( $this->type == 'action' ? '' : 'return '.$this->arguments[0].';');
 
 		if( $args ){
-			$output .= "<pre><code>\n"
+			$wiki .= "<pre><code>\n"
 				."{$function}('{$this->name}','my_custom_callback',10,$args);\n"
 				."function my_custom_callback( {$_arguments} ){\n"
 				."	//Callback performs operation\n"
@@ -31,21 +31,21 @@ class PCG_Hook{
 
 		/* Locations */
 		if( $this->location ){
-			$output .= "<h3>Location At</h3> \n";
-			$output .= '<ul>';
+			$wiki .= "<h3>Location At</h3> \n";
+			$wiki .= '<ul>';
 			foreach( $this->location as $location ) {
 				$file = plugincodex_sanitize_path($location['path']);
 				$line = !empty($location['line']) ? ' #L'.intval($location['line']) : '';
 				$segments = explode('/', $file);
 				$_location = implode( ' / ', $segments ).$line;
 
-				$output .= " <li> {$_location} </li>\n";
+				$wiki .= " <li> {$_location} </li>\n";
 			}
-			$output .= '</ul>';
-			$output .= "\n";
+			$wiki .= '</ul>';
+			$wiki .= "\n";
 		}
 
-		return $this->generated_content = $output;
+		return $this->generated_content = $wiki;
 	}
 }
 
