@@ -295,6 +295,15 @@ class PCG_Query {
 				}
 			break;
 
+			case 'package':
+				if( empty($value) && $this->page_package )
+					$value = $this->page_package;
+			break;
+
+			case 'since':
+				$value = plugincodex_sanitize_version($value);
+			break;
+
 		endswitch;
 
 		return $value;
@@ -314,14 +323,10 @@ class PCG_Query {
 		$function->long_desc = isset($doc['long_desc']) ? $doc['long_desc'] : '';
 		$function->short_desc = isset($doc['short_desc']) ? $doc['short_desc'] : '';
 
-		if( $this->page_package )
-			$function->package = $this->page_package;
-		if( !empty($function->doc['tags']['package'] ) )
-			$function->{$tag} = $function->doc['tags']['package'];
-
-		$tags = array('see','uses','used-by','link');
+		/* Tags */
+		$tags = array('package','since','see','uses','used-by','link');
 		foreach( $tags as $tag ){
-			if( !empty($function->doc['tags'][$tag] ) ){
+			if( isset($function->doc['tags'][$tag] ) ){
 				$_tag = str_replace('-','_', $tag);
 				$function->{$_tag} = $this->parse_tag($tag, $function->doc['tags'][$tag] );
 			}
@@ -352,17 +357,6 @@ class PCG_Query {
 				$version = plugincodex_sanitize_version($version);
 
 			$function->deprecated = compact('version','description','replacement');
-		}
-
-		/* Handle the @since tag */
-		if( isset($function->doc['tags']['since']) ) {
-
-			$version = plugincodex_sanitize_version($function->doc['tags']['since']);
-
-			if( !empty($version) ) {
-				$function->doc['tags']['since'] = $version;
-				$function->since = $version;
-			}
 		}
 
 		return $function;		
