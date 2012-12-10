@@ -32,8 +32,9 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 				$query[$arg] = esc_attr($_GET[$arg]);
 		}
 
-		$search = new PCG_Query($query);
+		$search = new PCG_Function_Query($query);
 		$data = $search->get_results();
+		$this->paths = $search->paths;
 
 		$total_items = $search->count;
 		$this->items = $data;
@@ -105,7 +106,7 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 		<option value=""></option>
 		<?php
 
-		$tree = $this->explode_paths_to_tree(Codex_Generator_Phpdoc_Parser::get_paths());
+		$tree = $this->explode_paths_to_tree($this->paths);
 		echo $this->print_tree($tree, $path);
 
 		?>

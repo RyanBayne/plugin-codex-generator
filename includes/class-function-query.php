@@ -8,7 +8,7 @@ function plugincodex_get_functions( $args=array() ){
 		'functions__in'=>false,
 	),$args);
 
-	$query = new PCG_Query($args);
+	$query = new PCG_Function_Query($args);
 	return $query->get_results();
 }
 
@@ -132,7 +132,7 @@ class PCG_Hook_Query{
 
 
 
-class PCG_Query {
+class PCG_Function_Query {
 
 	static $user_functions;
 
@@ -190,6 +190,7 @@ class PCG_Query {
 				$results = array_merge($results, $new_results );
 		}
 
+		$this->paths = wp_list_pluck( $results, 'path');
 		$results = array_filter($results, array(&$this,'array_filter'));
 
 		usort($results, array(&$this, 'usort'));
