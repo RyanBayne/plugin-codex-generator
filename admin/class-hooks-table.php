@@ -78,7 +78,7 @@ class Plugin_Codex_Generator_Hooks_Table extends WP_List_Table {
 	function generate_docs(){
 		$options = array(
 			''=> __('Bulk Actions'),
-			'generate-hook-documentation' => __('Generate/Update Documentation'),
+			'generate-hook-documentation' => __('Generate/Update Documentation','plugincodexgen'),
 		);
 		echo '<select id="functon_action" name="plugincodexgen[action]">';
 		foreach( $options as $value => $label ) {
@@ -95,7 +95,7 @@ class Plugin_Codex_Generator_Hooks_Table extends WP_List_Table {
 		$path = isset( $_GET['path'] ) ? esc_html($_GET['path']) : false;
 
 		?>
-	<label for="path"><span class="description"><?php _e('Path:','codex_gen'); ?></span></label>
+	<label for="path"><span class="description"><?php _e('Path:','plugincodexgen'); ?></span></label>
 	<select id="path" name='path'>
 		<option value=""></option>
 		<?php
@@ -143,10 +143,10 @@ class Plugin_Codex_Generator_Hooks_Table extends WP_List_Table {
 	function get_columns(){
 		$columns = array(
 			'cb' => '<input type="checkbox" />',
-			'name' => __('Name', 'codex_gen'),
-			'type' => __('Filter/Action','codex_gen'),
-			'arguments' => __('Arguments', 'codex_gen'),
-			'file' => __('Location', 'codex_gen'),
+			'name' => __('Name', 'plugincodexgen'),
+			'type' => __('Filter/Action','plugincodexgen'),
+			'arguments' => __('Arguments', 'plugincodexgen'),
+			'file' => __('Location', 'plugincodexgens'),
 		);
 		return $columns;
     	}

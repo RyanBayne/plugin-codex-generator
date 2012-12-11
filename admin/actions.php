@@ -1,13 +1,19 @@
 <?php
 
 /* Trigger custom actions */
-add_action('init', 'plugincodexgen_init',11);
-
+/**
+ * Initialises plug-in actions
+ * Hooked onto init
+ * @since 1.0
+ * @ignore
+ * @access private
+ */
 function plugincodexgen_init(){
 	if( !empty($_REQUEST['plugincodexgen']) && !empty($_REQUEST['plugincodexgen']['action']) ){
 		do_action('plugincodexgen_action-'.trim($_REQUEST['plugincodexgen']['action']));
 	}
 }
+add_action('init', 'plugincodexgen_init',11);
 
 /* Generate function/hook documentation */
 add_action('plugincodexgen_action-generate-documentation','_plugincodexgen_generate_documentation');
@@ -18,6 +24,13 @@ add_action('wp_ajax_plugin_codex_gen_suggest', '_plugincodexgen_function_suggest
 add_action('wp_ajax_plugin_codex_gen_wiki',  '_plugincodexgen_function_wiki');
 
 
+/**
+ * Ajax callback - searches for functions by name
+ * Hooked onto wp_ajax_plugin_codex_gen_suggest
+ * @since 1.0
+ * @ignore
+ * @access private
+ */
 function _plugincodexgen_function_suggest(){
 
 	if( !current_user_can('manage_options') )
@@ -36,6 +49,13 @@ function _plugincodexgen_function_suggest(){
 	die;
 }
 
+/**
+ * Ajax callback - preview function wiki
+ * Hooked onto wp_ajax_plugin_codex_gen_wiki
+ * @since 1.0
+ * @ignore
+ * @access private
+ */
 function  _plugincodexgen_function_wiki() {
 
 	if( !current_user_can('manage_options') )
@@ -49,7 +69,7 @@ function  _plugincodexgen_function_wiki() {
 	$data = array_pop( plugincodex_get_functions( array('functions__in'=>array($function)) ) );
 	$wiki = $data->get_wiki();
 
-	echo '<hr><h1> Preview </h1><hr>';
+	printf('<hr><h1> %s </h1><hr>',__('Preview','plugincodexgen'));
 	echo $wiki;
 	if( is_plugin_active('wp-markdown/wp-markdown.php') ){
 		$md = wpmarkdown_html_to_markdown(wpautop($wiki));
@@ -62,6 +82,13 @@ function  _plugincodexgen_function_wiki() {
 	die;
 }
 
+/**
+ * Generates documentation for functions
+ * Hooked onto plugincodexgen_action-generate-documentation
+ * @since 1.0
+ * @ignore
+ * @access private
+ */
 function _plugincodexgen_generate_documentation(){
 
 	check_admin_referer('plugincodexgen-bulk-action', '_pcgpnonce');
@@ -117,7 +144,13 @@ function _plugincodexgen_generate_documentation(){
 	exit();
 }
 
-
+/**
+ * Generates documentation for hooks
+ * Hooked onto plugincodexgen_action-generate-hook-documentation
+ * @since 1.0
+ * @ignore
+ * @access private
+ */
 function _plugincodexgen_generate_hook_documentation(){
 
 	check_admin_referer('plugincodexgen-bulk-action', '_pcgpnonce');

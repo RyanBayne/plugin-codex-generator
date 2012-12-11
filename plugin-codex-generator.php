@@ -13,8 +13,7 @@ License Notes: GPLv2 or later
 /* 
  * Known Issues
  *
- * Doesn't document all tags. Notably: @uses and @used-by @sub-package @see @access
- * Would like to add urls that link @uses, @used-by, @see
+ * Doesn't document all tags. E.g. @access
  * Not confirmed, but a filter with array($this,'callback') or array(__CLASS__,'callback') as an argument will just be interpreted as $array.
  * When applying a filter callback to $this from within a class. The generated docs will just have '$this' as an argument - would be nice to treat it
  * differently from a normal variable. But this is not easy.
@@ -79,7 +78,13 @@ require PLUGIN_CODEX_GENERATOR_DIR . 'includes/class-phpdoc-parser.php';
 require PLUGIN_CODEX_GENERATOR_DIR.'PHP/Reflect/Autoload.php';
 
 /* Widget */
-add_action( 'widgets_init', '_plugincodexgen_widgets_init');
+/**
+ * Initialises widget
+ * @since 1.0
+ * @ignore
+ * @access private
+*/
 function _plugincodexgen_widgets_init(){
 	register_widget('PCG_Related_Function_Widget');
 }
+add_action( 'widgets_init', '_plugincodexgen_widgets_init');

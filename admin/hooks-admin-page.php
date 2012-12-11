@@ -49,7 +49,7 @@ class PCG_Admin_Page_Hooks {
 		self::add_method('admin_print_styles');
 
 		//Add screen option
-		add_screen_option('per_page', array('label' => __('functions', 'plugincodexgen'), 'default' => 15));
+		add_screen_option('per_page', array('label' => __('hooks', 'plugincodexgen'), 'default' => 15));
 		add_filter('screen_settings', array(__CLASS__,'screen_options'), 10, 2);
 
 		self::$table = new Plugin_Codex_Generator_Hooks_Table();
@@ -114,7 +114,7 @@ class PCG_Admin_Page_Hooks {
 		$plugins = get_plugins();
 		$plugin = get_option('plugin-codex_plugin');
 
-		$return = sprintf('<strong><label for="plugin_codex_plugin"> %s </label></strong>',__('Select plugin to parse:'));
+		$return = sprintf('<strong><label for="plugin_codex_plugin"> %s </label></strong>',__('Select plugin to parse:','plugincodexgen'));
 		$return .= sprintf('<select name="plugin_codex_plugin" id="plugin_codex_plugin">');
 
 		foreach ( $plugins as $plugin_key => $a_plugin ) {

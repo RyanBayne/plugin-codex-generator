@@ -1,4 +1,20 @@
 <?php
+
+/**
+ * A wrapper for get_post_meta, prefixes key with _plugincodex_
+ *
+ * Dispite the name this is used to retrieve meta for hooks as well as functions
+ *
+ * @since 1.0
+ * @uses get_post_meta()
+ * @link http://codex.wordpress.org/Function_Reference/get_post_meta
+ * 
+ * @param int $post_id Post ID.
+ * @param string $key (without the prefix '_plugincodex_')
+ * @param bool $single Whether to return a single value.
+ * @return mixed Will be an array if $single is false. Will be value of meta data field if $single
+ *  is true.
+ */
 function plugincodex_get_function_meta($post_id, $meta_key, $single=false ){
 	return get_post_meta($post_id,'_plugincodex_'.$meta_key, $single );
 }
@@ -25,9 +41,9 @@ class PCG_Function{
 
 			//Check if deprecated version is given
 			if( !empty($this->deprecated['version']) ){
-				$wiki .= sprintf("This function has been <strong>deprecated</strong> since %s. ", $this->deprecated['version']);
+				$wiki .= sprintf(__("This function has been <strong>deprecated</strong> since %s.",'plugincodexgen'), $this->deprecated['version']);
 			}else{
-				$wiki .= sprintf("This function is <strong>deprecated</strong>.");
+				$wiki .= sprintf(__("This function is <strong>deprecated</strong>.",'plugincodexgen'));
 			}
 
 			//Check if replacement is given.
@@ -35,26 +51,26 @@ class PCG_Function{
 				//Replacement given, try to find a link to this function's page
 				if(  $replacement = get_posts(array('post_type'=>'pcg_function','name'=>sanitize_title($this->deprecated['replacement']), 'numberposts'=>1))  ){
 					$url = get_permalink($replacement[0]);
-					$wiki .= sprintf("Use <a href='%s'><code>%s</code></a> instead.\n\n", $url, $this->deprecated['replacement'].'()');					
+					$wiki .= ' '.sprintf(__("Use <a href='%s'><code>%s</code></a> instead",'plugincodexgen')."\n\n", $url, $this->deprecated['replacement'].'()');					
 				}else{
-					$wiki .= sprintf("Use <code>%s</code> instead.\n\n", $this->deprecated['replacement'].'()');
+					$wiki .= ' '.sprintf(__("Use <code>%s</code> instead",'plugincodexgen')."\n\n", $this->deprecated['replacement'].'()');
 				}
 
 			}else{
-				$wiki .= sprintf("No replacement has been specified.\n\n");
+				$wiki .= sprintf(__("No replacement has been specified.",'plugincodexgen')."\n\n");
 			}
 		}
 
 		/* Description */
-		$wiki .= $this->compile_wiki_section('<h3>Description</h3>', $this->short_desc, $this->long_desc)."\n";
+		$wiki .= $this->compile_wiki_section(sprintf('<h3>%s</h3>',__('Description','plugincodexgen')), $this->short_desc, $this->long_desc)."\n";
 
 		/* Usage*/
 		$text_params = !empty($this->parameters) ? '$' . implode(', $', array_keys($this->parameters)) : '';
-		$wiki .=  $this->compile_wiki_section('<h3>Usage</h3>', '<pre><code>'.esc_html("     <?php {$this->name}( {$text_params} ); ?>     ")."\n".'</code></pre>');
+		$wiki .=  $this->compile_wiki_section(sprintf('<h3>%s</h3>',__('Usage','plugincodexgen')), '<pre><code>'.esc_html("     <?php {$this->name}( {$text_params} ); ?>     ")."\n".'</code></pre>');
 
 		/* Parameters */
 		if( $this->parameters ){
-			$wiki .= "<h3>Parameters</h3> \n";
+			$wiki .= sprintf('<h3>%s</h3>',__('Parameters','plugincodexgen'))." \n";
 			$wiki .= '<ul>';
 			foreach( $this->parameters as $param ) {
 
@@ -73,10 +89,10 @@ class PCG_Function{
 
 		/* @see / @uses / @used-by */
 		if( $this->see || $this->uses || $this->used_by ){
-			$wiki .= "<h3>See</h3> \n";
+			$wiki .= sprintf('<h3>%s</h3>',__('See','plugincodexgen'))." \n";
 			$wiki .= '<ul>';
 
-			$types = array('see'=>__('See'),'uses'=>__('Used'),'used_by'=>__('Used By'));
+			$types = array('see'=>__('See','plugincodexgen'),'uses'=>__('Uses','plugincodexgen'),'used_by'=>__('Used By','plugincodexgen'));
 			foreach( $types as $type => $label ){
 
 				if( !$this->{$type} )
@@ -105,7 +121,7 @@ class PCG_Function{
 
 		/* @link */
 		if( $this->link ){
-			$wiki .= "<h3>Resources</h3> \n";
+			$wiki .= sprintf('<h3>%s</h3>',__('Resources','plugincodexgen'))." \n";
 			$wiki .= '<ul>';
 			foreach( $this->link as $link ) {
 				$wiki .= sprintf("<li><a href='%s'>%s</a></li>\n",esc_url($link['url']), esc_html($link['description']));
@@ -129,7 +145,7 @@ class PCG_Function{
 			if (strlen($since) > 3 && '.0' === substr($since, -2))
 				$since = substr($since, 0, 3);
 
-			$wiki .= $this->compile_wiki_section('<h3> Change Log</h3>',"Since: {$since}");
+			$wiki .= $this->compile_wiki_section(sprintf('<h3>%s</h3>',__('Change Log','plugincodexgen')),__("Since:",'plugincodexgen')." {$since}");
 		}
 
 		/* Location */
@@ -137,7 +153,8 @@ class PCG_Function{
 		if( !empty($this->line) )
 			$path .= ' ('.__('line:').' '.$this->line.')';
 
-		$wiki .="<h3>Located</h3> \n  This function can be found in <code>{$path}</code> \n";
+		$wiki .= sprintf('<h3>%s</h3>',__('Location','plugincodexgen'))." \n";
+		$wiki .=sprintf(__("This function can be found in <code>%s</code>",'plugincodexgen'), $path)." \n";
 
 		return $this->generated_content = $wiki;
 	}

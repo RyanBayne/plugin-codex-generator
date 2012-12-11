@@ -27,7 +27,7 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 			'offset' => $offset,
 		);
 
-		foreach( array('s','orderby','order','path') as $arg ){
+		foreach( array('s','orderby','order','path','version') as $arg ){
 			if( isset($_GET[$arg]) )
 				$query[$arg] = esc_attr($_GET[$arg]);
 		}
@@ -60,9 +60,9 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 
 		if( 'top' == $which ) {
 			$this->generate_docs();
-			$this->search_box( __('Name:','plugin_codex_gen'),'functions');
+			$this->search_box( __('Name:','plugincodexgen'),'functions');
 			$this->path_dropdown();
-			submit_button( __( 'Filter' ), 'secondary', false, false, array( 'id' => 'function-query-submit' ) );
+			submit_button( __( 'Filter','plugincodexgen' ), 'secondary', false, false, array( 'id' => 'function-query-submit' ) );
 			$this->reset_button();
 		}
 		else {
@@ -73,7 +73,7 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 	function generate_docs(){
 		$options = array(
 			''=> __('Bulk Actions'),
-			'generate-documentation' => __('Generate/Update Documentation'),
+			'generate-documentation' => __('Generate/Update Documentation','plugincodexgen'),
 		);
 		echo '<select id="functon_action" name="plugincodexgen[action]">';
 		foreach( $options as $value => $label ) {
@@ -150,14 +150,14 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 	function get_columns(){
 		$columns = array(
 			'cb' => '<input type="checkbox" />',
-			'name' => __('Name', 'codex_gen'),
-			'arguments' => __('Arguments', 'codex_gen'),
-			'return' => __('Return', 'codex_gen'),
-			'description' => __('Description', 'codex_gen'),
-			'version' => __('Version', 'codex_gen'),
-			'package' => __('Package','codex_gen'),
-			'file' => __('File', 'codex_gen'),
-			'get' => __('Get', 'codex_gen'),
+			'name' => __('Name', 'plugincodexgen'),
+			'arguments' => __('Arguments', 'plugincodexgen'),
+			'return' => __('Return', 'plugincodexgen'),
+			'description' => __('Description', 'plugincodexgen'),
+			'version' => __('Version', 'plugincodexgen'),
+			'package' => __('Package','plugincodexgen'),
+			'file' => __('File', 'plugincodexgen'),
+			'get' => __('Get', 'plugincodexgen'),
 		);
 		return $columns;
     	}
@@ -231,12 +231,10 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 	function column_version($item) {
 
 		$version = '';
-		if( !empty($item->doc['tags']['since']) ) {
-
-			$version = esc_html(plugincodex_sanitize_version($item->doc['tags']['since']));
-			$link = esc_url(add_query_arg('version', $version, PLUGIN_CODEX_GENERATOR_LINK));
-			$title = esc_attr(sprintf(__('Filter by %s version', 'codex_gen'), $version));
-			$version = "<a href='{$link}' title='{$title}'>{$version}</a>";
+		if( !empty($item->since ) ){
+			$link = esc_url(add_query_arg('version', $item->since, PLUGIN_CODEX_GENERATOR_LINK));
+			$title = esc_attr(sprintf(__('Filter by %s version', 'plugincodexgen'), $item->since));
+			$version = "<a href='{$link}' title='{$title}'>{$item->since}</a>";
 		}
 
 		return $version;
@@ -294,8 +292,8 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 		);
 
 		$href = esc_url(add_query_arg($query, $href));
-		$anchor = esc_html(__('Wiki','codex_gen'));
-		$title = esc_attr(sprintf(__('Wiki page markup for %s()',''), $name));
+		$anchor = esc_html(__('Wiki','plugincodexgen'));
+		$title = esc_attr(sprintf(__('Wiki page markup for %s()','plugincodexgen'), $name));
 
 		$page ='';
 		if( $posts = get_posts(array('post_type'=>'pcg_function','post_status'=>'any','name'=>sanitize_title($item->name))) ){

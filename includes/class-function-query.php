@@ -1,5 +1,33 @@
 <?php
 
+/**
+ * Retrieves functions parsed from the plug-in files. This does not query the generated function pages.
+ *
+ * A wrapper for PCG_Function_Query. The query array can contain:
+ *
+ * 's' => To search by name
+ *
+ * 'path' => To filter by file path
+ *
+ * 'version' => To filter by version
+ *
+ * 'functions__in' => (array) To filter by function name
+ *
+ * 'orderby' => Choose an order criteria (name | version | file ).
+ *
+ * 'order' => asc|des
+ *
+ * 'number' => The number of functions to retrieve. Default -1 (all)
+ *
+ * 'offset' => The offset (used for pagination). Default: 0
+ *
+ * 'skip_private' => Whether to skip functions with @access private. Default true.
+ *
+ * @since 1.0
+ * 
+ * @args array Query array
+ * @return array Array of PCG_Function objects
+ */
 function plugincodex_get_functions( $args=array() ){
 
 	$plugin = get_option('plugin-codex_plugin');
@@ -12,6 +40,32 @@ function plugincodex_get_functions( $args=array() ){
 	return $query->get_results();
 }
 
+/**
+ * Retrieves hooks parsed from the plug-in files. This does not query the generated hook pages.
+ *
+ * A wrapper for PCG_Hook_Query. The query array can contain:
+ *
+ * 's' => To search by name
+ *
+ * 'type' => To filter by action | filter
+ *
+ * 'path' => To filter by file path
+ *
+ * 'hooks__in' => (array) To filter by hook name
+ *
+ * 'orderby' => Choose an order criteria (name | version | file ).
+ *
+ * 'order' => asc|des
+ *
+ * 'number' => The number of functions to retrieve. Default -1 (all)
+ *
+ * 'offset' => The offset (used for pagination). Default: 0
+ *
+ * @since 1.0
+ * 
+ * @args array Query array
+ * @return array Array of PCG_Hook objects
+ */
 function plugincodex_get_hooks( $args=array() ){
 
 	$plugin = get_option('plugin-codex_plugin');
@@ -28,6 +82,7 @@ class PCG_Hook_Query{
 
 	function __construct($args=array()) {
 		$this->args = wp_parse_args($args, array(
+											's'=> false,
 											'type'=>false,
 											 'path' => false,
 											'hooks__in'=>array(),
@@ -107,6 +162,11 @@ class PCG_Hook_Query{
 			return false;
 		}
 		return true;
+
+		if( !empty( $args['s'] ) ){
+			if( false === strpos($hook->name, $args['s']) )
+					return false;
+		}
 	}
 
 	function usort($first, $second) {
@@ -148,7 +208,6 @@ class PCG_Function_Query {
 											 's' => false,
 											 'match' => 'fuzzy',
 											 'version' => false,
-											 'version_compare' => '=',
 											 'path' => false,
 											'functions__in'=>array(),
 											 'orderby' => 'name',
@@ -158,6 +217,9 @@ class PCG_Function_Query {
 											 'return' => 'name',
 											'skip_private'=>true,
 										   ));
+
+		if( $this->args['version'] )
+			$this->args['version'] = plugincodex_sanitize_version($this->args['version']);
 	}
 
 
@@ -302,7 +364,7 @@ class PCG_Function_Query {
 			break;
 
 			case 'since':
-				$value = plugincodex_sanitize_version($value);
+				$value = plugincodex_sanitize_version($value[0]);
 			break;
 
 		endswitch;
@@ -324,6 +386,9 @@ class PCG_Function_Query {
 		$function->long_desc = isset($doc['long_desc']) ? $doc['long_desc'] : '';
 		$function->short_desc = isset($doc['short_desc']) ? $doc['short_desc'] : '';
 
+		if( $this->page_package )
+			$function->package = $this->page_package;
+
 		/* Tags */
 		$tags = array('package','since','see','uses','used-by','link');
 		foreach( $tags as $tag ){
@@ -332,7 +397,7 @@ class PCG_Function_Query {
 				$function->{$_tag} = $this->parse_tag($tag, $function->doc['tags'][$tag] );
 			}
 		}
-
+		
 		/* Parse params from PHPReflect and merge with details from the docblock */
 		$params = Codex_Generator_Phpdoc_Parser::parse_params( $_function['arguments'] );
 		$function->parameters = Codex_Generator_Phpdoc_Parser::merge_params( $params, $doc['tags']['param']);		
@@ -410,11 +475,12 @@ class PCG_Function_Query {
 		if( isset($function->doc['tags']['ignore']) )
 			return false;
 
-		if( !empty($this->args['version']) )
-			if( empty($function['tags']['since']) )
+		if( !empty($this->args['version']) ){
+			if( empty($function->since) )
 				return false;
 			else
-				return version_compare($function['tags']['since'], $this->args['version'],  $this->args['version_compare']);
+				return version_compare($function->since, $this->args['version']) == 0;
+		}
 
 		if( !empty($this->args['path']) ){
 			if( 0 !== strpos($function->path, $this->args['path']) )

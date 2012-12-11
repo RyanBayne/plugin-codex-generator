@@ -1,7 +1,10 @@
 <?php
-
-add_shortcode( 'plugin_docs', '_plugincodex_handle_shortcode' );
-
+/**
+ * plugin_codex shortcode handler
+ * @since 1.0
+ * @ignore
+ * @access private
+*/
 function _plugincodex_handle_shortcode( $atts ){
      extract(shortcode_atts(array(
 		'object' => 'function',
@@ -44,6 +47,7 @@ function _plugincodex_handle_shortcode( $atts ){
 			$html .= sprintf('<li> <a href="%s"> %s </a> </li>', get_permalink($function), get_the_title($function->ID)); 
 	}
 	$html .='</ul>';
-	return $html;
-}
 
+	return apply_filters('plugincodex_plugin_codex_shortcode', $html, $atts);
+}
+add_shortcode( 'plugin_codex', '_plugincodex_handle_shortcode' );

@@ -3,8 +3,14 @@
 * add's custom taxonomies (categories and tags) and then custom post type 'event'.
 */ 
 
-//Register the custom post post types & taxonomies
-add_action( 'init', 'plugincodexgen_create_custom_types', 10 );
+/**
+ * Registers custom post types (pcg_function & pcg_hook pages) and taxonomies (pcg_package,pcg_stems, pcg_hook_type)
+ * Hooked onto init.
+ * 
+ * @since 1.0
+ * @ignore
+ * @access private
+*/
 function plugincodexgen_create_custom_types() {
 
   	$labels = array(
@@ -19,7 +25,6 @@ function plugincodexgen_create_custom_types() {
 		'search_items' =>__('Search functions','plugincodexgen'),
 		'not_found' =>  __('No functions found','plugincodexgen'),
 		'not_found_in_trash' =>  __('No functions found in Trash','plugincodexgen'),
-		'parent_item_colon' => '',
 		'menu_name' => __('Plug-in Docs','plugincodexgen'),
   	);
 
@@ -78,31 +83,31 @@ function plugincodexgen_create_custom_types() {
 	register_post_type('pcg_hook', apply_filters('plugincodexgen_register_pcg_hook', $args) );
 
   	$labels = array(
-    		'name' => _x( 'Function Stems', 'taxonomy general name' ),
-    		'singular_name' => _x( 'Stem', 'taxonomy singular name' ),
-    		'search_items' =>  __( 'Search Stems' ),
-    		'all_items' => __( 'All Stems' ),
-    		'edit_item' => __( 'Edit Stem' ), 
-    		'update_item' => __( 'Update Stem' ),
-    		'add_new_item' => __( 'Add New Stem' ),
-    		'new_item_name' => __( 'New Stem Name' ),
-    		'menu_name' => __( 'Stem' ),
+    		'name' => _x( 'Function Stems', 'plugincodexgen' ),
+    		'singular_name' => _x( 'Stem', 'plugincodexgen' ),
+    		'search_items' =>  __( 'Search Stems','plugincodexgen' ),
+    		'all_items' => __( 'All Stems','plugincodexgen' ),
+    		'edit_item' => __( 'Edit Stem','plugincodexgen' ), 
+    		'update_item' => __( 'Update Stem','plugincodexgen' ),
+    		'add_new_item' => __( 'Add New Stem','plugincodexgen' ),
+    		'new_item_name' => __( 'New Stem Name','plugincodexgen' ),
+    		'menu_name' => __( 'Stem','plugincodexgen' ),
     	);
 	register_taxonomy('pcg_stems',array('pcg_function'), array(
     		'hierarchical' => false,
 		'labels' => $labels,
-    		'show_ui' => true,
+    		'show_ui' => false,
   	));
   	$labels = array(
-    		'name' => _x( 'Packages', 'taxonomy general name' ),
-    		'singular_name' => _x( 'Package', 'taxonomy singular name' ),
-    		'search_items' =>  __( 'Search Packages' ),
-    		'all_items' => __( 'All Packages' ),
-    		'edit_item' => __( 'Edit Package' ), 
-    		'update_item' => __( 'Update Package' ),
-    		'add_new_item' => __( 'Add New Package' ),
-    		'new_item_name' => __( 'New Package Name' ),
-    		'menu_name' => __( 'Package' ),
+    		'name' => _x( 'Packages', 'plugincodexgen' ),
+    		'singular_name' => _x( 'Package', 'plugincodexgen' ),
+    		'search_items' =>  __( 'Search Packages','plugincodexgen' ),
+    		'all_items' => __( 'All Packages','plugincodexgen' ),
+    		'edit_item' => __( 'Edit Package','plugincodexgen' ), 
+    		'update_item' => __( 'Update Package','plugincodexgen' ),
+    		'add_new_item' => __( 'Add New Package','plugincodexgen' ),
+    		'new_item_name' => __( 'New Package Name','plugincodexgen' ),
+    		'menu_name' => __( 'Package','plugincodexgen' ),
     	);
 	register_taxonomy('pcg_package',array('pcg_function'), array(
     		'hierarchical' => true,
@@ -110,37 +115,63 @@ function plugincodexgen_create_custom_types() {
     		'show_ui' => true,
   	));	
   	$labels = array(
-    		'name' => _x( 'Hook Type', 'taxonomy general name' ),
-    		'singular_name' => _x( 'Hook Type', 'taxonomy singular name' ),
-    		'search_items' =>  __( 'Search Hook Types' ),
-    		'all_items' => __( 'All Hook Types' ),
-    		'edit_item' => __( 'Edit Hook Type' ), 
-    		'update_item' => __( 'Update Hook Type' ),
-    		'add_new_item' => __( 'Add New Hook Type' ),
-    		'new_item_name' => __( 'New Hook Type Name' ),
+    		'name' => _x( 'Hook Type', 'plugincodexgen' ),
+    		'singular_name' => _x( 'Hook Type', 'plugincodexgen' ),
+    		'search_items' =>  __( 'Search Hook Types','plugincodexgen' ),
+    		'all_items' => __( 'All Hook Types','plugincodexgen' ),
+    		'edit_item' => __( 'Edit Hook Type','plugincodexgen' ), 
+    		'update_item' => __( 'Update Hook Type','plugincodexgen'),
+    		'add_new_item' => __( 'Add New Hook Type','plugincodexgen' ),
+    		'new_item_name' => __( 'New Hook Type Name','plugincodexgen' ),
     	);
 	register_taxonomy('pcg_hook_type',array('pcg_hook'), array(
     		'hierarchical' => false,
     		'show_ui' => true,
 		'labels' => $labels,
   	));	
-
 }
+add_action( 'init', 'plugincodexgen_create_custom_types', 10 );
 
-add_action('admin_menu','_plugincodex_remove_submenu');
+
+/**
+ * Removes 'add new function' link from menu
+ * Hooked onto admin_menu.
+ * 
+ * @since 1.0
+ * @ignore
+ * @access private
+*/
 function _plugincodex_remove_submenu(){
 	remove_submenu_page( 'edit.php?post_type=pcg_function', 'post-new.php?post_type=pcg_function' );
 }
+add_action('admin_menu','_plugincodex_remove_submenu');
 
-add_action('edit_form_advanced','_pcg_function_additional_info_tinymce');
+
+/**
+ * Adds TinyMCE editor on pcg_function & pcg_hook pages for persistant extra information.
+ * Hooked onto edit_form_advanced
+ * 
+ * @since 1.0
+ * @ignore
+ * @access private
+*/
 function _pcg_function_additional_info_tinymce( ){
 	if( 'pcg_function' != get_post_type(get_the_ID()) && 'pcg_hook' != get_post_type(get_the_ID()) )
 		return;
 	wp_nonce_field('plugincodex_update_'.get_the_ID(),'_pcgnonce');
 	wp_editor( plugincodex_get_function_meta(get_the_ID(),'other_notes',true), 'pcg_tinymce');
 }
+add_action('edit_form_advanced','_pcg_function_additional_info_tinymce');
 
-add_action('save_post','_pcg_function_hook_save_post');
+
+/**
+ *Callback for saving information entered in the above TinyMCE editor
+ * Hooked onto save_post
+ * 
+ * @since 1.0
+ * @ignore
+ * @access private
+*/
 function _pcg_function_hook_save_post( $post_id ){
 
 	//make sure data came from our meta box
@@ -162,3 +193,4 @@ function _pcg_function_hook_save_post( $post_id ){
 	update_post_meta($post_id,'_plugincodex_other_notes', $other_notes);
 	return;
 }
+add_action('save_post','_pcg_function_hook_save_post');

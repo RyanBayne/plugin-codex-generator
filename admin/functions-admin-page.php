@@ -133,7 +133,7 @@ class PCG_Admin_Page {
 		$plugins = get_plugins();
 		$plugin = get_option('plugin-codex_plugin');
 
-		$return = sprintf('<strong><label for="plugin_codex_plugin"> %s </label></strong>',__('Select plugin to parse:'));
+		$return = sprintf('<strong><label for="plugin_codex_plugin"> %s </label></strong>',__('Select plugin to parse:','plugincodexgen'));
 		$return .= sprintf('<select name="plugin_codex_plugin" id="plugin_codex_plugin">');
 
 		foreach ( $plugins as $plugin_key => $a_plugin ) {

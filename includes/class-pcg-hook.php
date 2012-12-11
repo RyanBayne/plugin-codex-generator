@@ -12,7 +12,7 @@ class PCG_Hook{
 		$wiki='';
 
 		/* Usage */
-		$wiki .= '<h3> Usage </h3>';
+		$wiki .= sprintf('<h3>%s</h3>',__('Usage','plugincodexgen'));
 
 		$function = ( $this->type == 'action' ? 'add_action' : 'apply_filter' );
 		$args = count($this->arguments);
@@ -31,7 +31,7 @@ class PCG_Hook{
 
 		/* Locations */
 		if( $this->location ){
-			$wiki .= "<h3>Location At</h3> \n";
+		$wiki .= sprintf('<h3>%s</h3>',__('Location','plugincodexgen'));
 			$wiki .= '<ul>';
 			foreach( $this->location as $location ) {
 				$file = plugincodex_sanitize_path($location['path']);

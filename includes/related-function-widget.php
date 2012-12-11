@@ -3,8 +3,8 @@
 class PCG_Related_Function_Widget extends WP_Widget {
 
 	function __construct() {
-		$widget_ops = array('classname' => 'pcg-related-function-widget', 'description' => __( "Displays related functions on the single function page") );
-		parent::__construct('recent-posts', __('Related Functions'), $widget_ops);
+		$widget_ops = array('classname' => 'pcg-related-function-widget', 'description' => __( "Displays related functions. This widget will only appear on single function pages",'plugincodexgen') );
+		parent::__construct('recent-posts', __('Related Functions','plugincodexgen'), $widget_ops);
 		$this->alt_option_name = 'pcg-related-function-widgets';
 
 		add_action( 'save_post', array(&$this, 'flush_widget_cache') );
@@ -29,9 +29,9 @@ class PCG_Related_Function_Widget extends WP_Widget {
 			return;
 		}
 
-		ob_start();
 		extract($args);
 
+		$html ='';
 		$title = $instance['title'];
 
 		if ( empty( $instance['number'] ) || ! $number = absint( $instance['number'] ) )
@@ -41,31 +41,31 @@ class PCG_Related_Function_Widget extends WP_Widget {
 
 		if( $posts ):
 
-			echo $before_widget; 
+			$html = $before_widget; 
 			if ( $title ) 
-				echo $before_title . $title . $after_title; 
+				$html .= $before_title . $title . $after_title; 
 
-			echo '<ul>';
+			$html .= '<ul>';
 
 				global $post;
 				foreach( $posts as $post ): setup_postdata($post);
-					printf('<li><a href="%s" title="%s">%s</a></li>',
+					$html .= sprintf('<li><a href="%s" title="%s">%s</a></li>',
 						get_permalink(),
 						esc_attr(get_the_title()),
 						get_the_title()
 					);
 				endforeach;
 
-			echo'</ul>';
+			$html .= '</ul>';
 
-			echo $after_widget; 
+			$html .= $after_widget; 
 
 			// Reset the global $the_post as this query will have stomped on it
 			wp_reset_postdata();
 
 		endif;
 
-		$cache[$args['widget_id']] = ob_get_flush();
+		$cache[$args['widget_id']] = apply_filters('plugincodex_related_functions_widget', $html, $args, $instance);
 		wp_cache_set('pcg-related-function-widgets', $cache, 'widget');
 	}
 
@@ -119,10 +119,10 @@ class PCG_Related_Function_Widget extends WP_Widget {
 		$title = isset($instance['title']) ? esc_attr($instance['title']) : '';
 		$number = isset($instance['number']) ? absint($instance['number']) : 5;
 ?>
-		<p><label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:'); ?></label>
+		<p><label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:','plugincodexgen'); ?></label>
 		<input class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" type="text" value="<?php echo $title; ?>" /></p>
 
-		<p><label for="<?php echo $this->get_field_id('number'); ?>"><?php _e('Number of posts to show:'); ?></label>
+		<p><label for="<?php echo $this->get_field_id('number'); ?>"><?php _e('Number of functions to show:','plugincodexgen'); ?></label>
 		<input id="<?php echo $this->get_field_id('number'); ?>" name="<?php echo $this->get_field_name('number'); ?>" type="text" value="<?php echo $number; ?>" size="3" /></p>
 <?php
 	}
