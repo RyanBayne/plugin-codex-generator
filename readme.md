@@ -9,7 +9,7 @@
   
 **Tested up to:** 3.4.2
   
-**Stable tag:** 1.0
+**Stable tag:** 1.0.1
   
 **License:** GPLv2 or later
   
@@ -44,13 +44,13 @@ Hooks are provided. In fact you can view the available hooks by going to the 'ho
 The following is an incomplete list of known bugs or limitations - feel free to get involved and contribute :)
 
  * **This plug-in does not currently document classes or their methods**
+ * Hooks need improved parsing. Should we create docbloc parsing for hooks?
+ * Not confirmed, but a hook with array($this,'callback') or array(__CLASS__,'callback') as an argument will just be interpreted as $array.
  * Doesn't document all tags. E.g. @access
- * Not confirmed, but a filter with array($this,'callback') or array(__CLASS__,'callback') as an argument will just be interpreted as $array.
  * When applying a filter callback to $this from within a class. The generated docs will just have '$this' as an argument - would be nice to treat it
  * differently from a normal variable. But this is not easy.
  * Although you can generate documents for multiple plug-ins, there is currently no way of discerning them once the documents are generated. This would need
  * a extra taxonomy for pcg_hook & pcg_function.
-
 
 ## Installation ##
 
@@ -63,6 +63,10 @@ The following is an incomplete list of known bugs or limitations - feel free to 
 
 
 ## Changelog ##
+
+### 1.0.1 ###
+* Flushes rewrite rules on activate/deactivate.
+* Adds filter for options since there is limited UI for options.
 
 ### 1.0 ###
 * Initial release.
