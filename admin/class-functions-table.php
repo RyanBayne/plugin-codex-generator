@@ -27,7 +27,7 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 			'offset' => $offset,
 		);
 
-		foreach( array('s','orderby','order','path','version') as $arg ){
+		foreach( array('s','orderby','order','path','version','package') as $arg ){
 			if( isset($_GET[$arg]) )
 				$query[$arg] = esc_attr($_GET[$arg]);
 		}
@@ -276,7 +276,12 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
     	}
 
 	function column_package( $item ){
-		echo $item->package;
+		$link = add_query_arg('package', $item->package, PLUGIN_CODEX_GENERATOR_LINK);
+		printf('<a href="%s" title="%s">%s</a>', 
+			esc_url($link), 
+			sprintf(esc_attr__('Filter by %s package','plugincodexgen'), $item->package), 
+			esc_html($item->package)
+		);
 	}
 
 	function column_get($item) {
@@ -292,8 +297,8 @@ class Plugin_Codex_Generator_Functions_Table extends WP_List_Table {
 		);
 
 		$href = esc_url(add_query_arg($query, $href));
-		$anchor = esc_html(__('Wiki','plugincodexgen'));
-		$title = esc_attr(sprintf(__('Wiki page markup for %s()','plugincodexgen'), $name));
+		$anchor = esc_html(__('Preview','plugincodexgen'));
+		$title = esc_attr(sprintf(__('Preview page markup for %s()','plugincodexgen'), $name));
 
 		$page ='';
 		if( $posts = get_posts(array('post_type'=>'pcg_function','post_status'=>'any','name'=>sanitize_title($item->name))) ){

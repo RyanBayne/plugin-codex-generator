@@ -4,7 +4,7 @@ class PCG_Related_Function_Widget extends WP_Widget {
 
 	function __construct() {
 		$widget_ops = array('classname' => 'pcg-related-function-widget', 'description' => __( "Displays related functions. This widget will only appear on single function pages",'plugincodexgen') );
-		parent::__construct('recent-posts', __('Related Functions','plugincodexgen'), $widget_ops);
+		parent::__construct('pcg-related-functions', __('Related Functions','plugincodexgen'), $widget_ops);
 		$this->alt_option_name = 'pcg-related-function-widgets';
 
 		add_action( 'save_post', array(&$this, 'flush_widget_cache') );

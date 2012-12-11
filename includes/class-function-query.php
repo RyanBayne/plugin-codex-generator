@@ -7,6 +7,8 @@
  *
  * 's' => To search by name
  *
+ * 'package'=> (string) Functions belonging to some package
+ *
  * 'path' => To filter by file path
  *
  * 'version' => To filter by version
@@ -465,7 +467,11 @@ class PCG_Function_Query {
 				return false;
 			}
 		}
-
+		if( !empty($this->args['package']) ){
+			if( $function->package != trim($this->args['package']) ){
+				return false;
+			}
+		}
 
 		if( !empty($this->args['skip_private']) ){
 			if( !empty($function->doc['tags']['access']) && 'private' == $function->doc['tags']['access'] )
