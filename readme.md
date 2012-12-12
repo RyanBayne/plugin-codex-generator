@@ -9,7 +9,7 @@
   
 **Tested up to:** 3.5
   
-**Stable tag:** 1.0.3
+**Stable tag:** 1.0.4
   
 **License:** GPLv2 or later
   
@@ -60,6 +60,14 @@ The following is an incomplete list of known bugs or limitations - feel free to 
 
 ## Frequently Asked Questions ##
 
+### Can I use Markdown in the DocBloc? ###
+Yes - if you have [WP-MarkDown](http://wordpress.org/extend/plugins/wp-markdown/) activated - the description part of a docbloc will support MarkDown. You should ensure each line of the description begins with an aesterix and then a space (`* `).
+
+
+### The generated documentation is incomplete or looks mess - what went wrong? ###
+
+First ensure that you're documentating your functions according to [PHPDoc](http://en.wikipedia.org/wiki/PHPDoc). Sometimes the parser can be quite strict. For instance, if parameters are missing, ensure that the name given in @param is the name used when defining the function. If you're convinced you've found a bug please use the GitHub issues page, providing the docbloc, the output and an explanation of what's wrong and/or what you were expecting.
+
 
 ### How Do I Display A List of Hooks / Functions ###
 
@@ -98,8 +106,26 @@ Generally there are files that contain no functions or no functions you wish to 
 
 There is also `plugincodex_absolute_plugin_paths` hook that fires after this and filters the absolute paths. 
 
+### What Docbloc Tags Can I use? ###
+
+The following are supported
+
+* `@param` and * `@return`
+* `@deprecated` - it's recommended that you use `@see` to denote the replacement
+* `@see` - note if using `@deprecated` then the first instance of `@see` will be assumed to be the replacement function.
+* `@since`
+* `@uses` and * `@used-by`
+* `@link` - this is also supported inline: `{@link url descriptoin}` e.g. `{@link www.example.com Example Link}`
+  
+* `@package`
+* `@ignore` - to ignore the function
+* `@access private` - current the parser ignores private functions too
+
 
 ## Changelog ##
+
+### 1.0.4 ###
+* Added MarkDown support for DocBloc descriptions when WP-MarkDown is activated.
 
 ### 1.0.3 ###
 * Add (filtered) error classes to 'deprecated' notices for styling.

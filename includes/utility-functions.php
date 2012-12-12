@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Simple check to see if the file is a .php or not
  *
@@ -206,8 +205,6 @@ function plugincodex_sanitize_version($version) {
 	return $version;
 }
 
-
-
 /**
  * Sanitizes function name, replaces spaces with undescores.
  *
@@ -224,5 +221,22 @@ function plugincodex_sanitize_function_name( $name ) {
 	return $name;
 }
 
-	
 
+/**
+* Removes a selected prefix from the begining of a string
+*
+* @since 1.0.4
+* @param string $string
+* @param string $prefix
+* @return string If the passed string is prefixed by $prefix, this is removed.
+*/
+function plugincodex_remove_from_start( $string, $prefix ){
+
+	$p = strlen($prefix);
+
+	if (substr($string, 0, $p) == $prefix) {
+		$string = substr($string, $p, strlen($string) );
+	} 
+
+	return $string;
+}

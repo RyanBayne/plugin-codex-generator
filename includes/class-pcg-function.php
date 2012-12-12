@@ -73,6 +73,12 @@ class PCG_Function{
 		}
 
 		/* Description */
+		/* If WP-MarkDown is activated - parse as MD */
+		include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		if( is_plugin_active('WP-MarkDown/wp-markdown.php') && function_exists('wpmarkdown_markdown_to_html') ){
+			$this->short_desc = wpmarkdown_markdown_to_html($this->short_desc);
+			$this->long_desc = wpmarkdown_markdown_to_html($this->long_desc);
+		}
 		$wiki .= $this->compile_wiki_section(sprintf('<h3>%s</h3>',__('Description','plugincodexgen')), $this->short_desc, $this->long_desc)."\n";
 
 		/* Usage*/
