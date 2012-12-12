@@ -39,6 +39,14 @@ class PCG_Function{
 		/* Deprecated Check */
 		if( !empty($this->deprecated) ){
 
+			$error_classes = apply_filters('plugincodex_error_classes', array('pcg-error'), $this );
+			if( is_array($error_classes) )
+				$error_classes = implode(' ', $error_classes);
+
+			if( $error_classes )
+				$wiki .= sprintf('<p class="%s">', esc_attr($error_classes) );
+
+
 			//Check if deprecated version is given
 			if( !empty($this->deprecated['version']) ){
 				$wiki .= sprintf(__("This function has been <strong>deprecated</strong> since %s.",'plugincodexgen'), $this->deprecated['version']);
@@ -57,8 +65,11 @@ class PCG_Function{
 				}
 
 			}else{
-				$wiki .= sprintf(__("No replacement has been specified.",'plugincodexgen')."\n\n");
+				$wiki .= sprintf(__("No replacement has been specified.",'plugincodexgen'));
 			}
+
+			if( $error_classes )
+				$wiki .= '</p>';
 		}
 
 		/* Description */
