@@ -1,16 +1,11 @@
 <?php
 
-class Codex_Generator_Phpdoc_Parser {
-
-	static $arrays = array();
-	static $versions = array();
-	static $paths = array();
+class Plugin_Codex_Generator_Phpdoc_Parser {
 
 	/**
 	 * Parses PHPDoc
 	 *
 	 * @param string $doc PHPDoc string
-	 *
 	 * @return array of parsed information
 	 */
 	static function parse_doc($doc) {
@@ -114,7 +109,12 @@ class Codex_Generator_Phpdoc_Parser {
 		$long_desc = preg_replace_callback(
 		        	    "/{@link ([^}]*)}/i",
 			            array(__CLASS__,'inline_make_clickable'),
-			            $long_desc);		
+			            $long_desc);	
+
+		$short_desc = preg_replace_callback(
+		        	    "/{@link ([^}]*)}/i",
+			            array(__CLASS__,'inline_make_clickable'),
+			            $short_desc);		
 
 		return compact( 'short_desc', 'long_desc', 'tags' );
 	}
@@ -132,10 +132,9 @@ class Codex_Generator_Phpdoc_Parser {
 
 
 	/**
-	 * Parses parameters from Reflection.
+	 * Parses parameters from PHP_Reflect.
 	 *
-	 * @param array $params of ReflectionParameter objects
-	 *
+	 * @param array $params
 	 * @return array of parameters' properties
 	 */
 	static function parse_params($params) {
@@ -163,11 +162,10 @@ class Codex_Generator_Phpdoc_Parser {
 	}
 
 	/**
-	 * Merges parameter information, obtained from Reflection and PHPDoc.
+	 * Merges parameter information, obtained from PHP_Reflect and PHPDoc.
 	 *
-	 * @param array $from_params info from Reflection
+	 * @param array $from_params info from PHP_Reflect
 	 * @param array $from_tags info from PHPDoc
-	 *
 	 * @return array merged info
 	 */
 	static function merge_params( $from_params, $from_tags ) {
@@ -188,19 +186,5 @@ class Codex_Generator_Phpdoc_Parser {
 		}
 
 		return $from_params;
-	}
-
-	static function get_versions() {
-
-		usort(self::$versions, 'version_compare');
-
-		return self::$versions;
-	}
-
-	static function get_paths() {
-
-		sort(self::$paths);
-
-		return self::$paths;
 	}
 }

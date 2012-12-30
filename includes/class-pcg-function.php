@@ -104,6 +104,24 @@ class PCG_Function{
 			$wiki .= "\n";
 		}
 
+		/* Return values */
+		if( !empty($this->doc['tags']['return']) ) {
+
+			list( $type, $description ) =plugincodex_padded_explode(' ', $this->doc['tags']['return'], 2, '');
+			$type = plugincodex_type_to_string($type, 'wiki');
+			$wiki .="<h3>Return Values</h3> \n\n  <ul><li> ({$type}) - {$description} </li></ul>\n\n";
+		}
+
+		/* Since */
+		$since = !empty($this->doc['tags']['since']) ? $this->doc['tags']['since'] : false;
+		if( !empty($since) ) {
+			$wiki .= "\n";
+			if (strlen($since) > 3 && '.0' === substr($since, -2))
+				$since = substr($since, 0, 3);
+
+			$wiki .= $this->compile_wiki_section(sprintf('<h3>%s</h3>',__('Change Log','plugincodexgen')),__("Since:",'plugincodexgen')." {$since}");
+		}
+
 		/* @see / @uses / @used-by */
 		if( $this->see || $this->uses || $this->used_by ){
 			$wiki .= sprintf('<h3>%s</h3>',__('See','plugincodexgen'))." \n";
@@ -135,7 +153,6 @@ class PCG_Function{
 			$wiki .= "\n";
 		}
 
-
 		/* @link */
 		if( $this->link ){
 			$wiki .= sprintf('<h3>%s</h3>',__('Resources','plugincodexgen'))." \n";
@@ -145,24 +162,6 @@ class PCG_Function{
 			}
 			$wiki .= '</ul>';
 			$wiki .= "\n";
-		}
-
-		/* Return values */
-		if( !empty($this->doc['tags']['return']) ) {
-
-			list( $type, $description ) =plugincodex_padded_explode(' ', $this->doc['tags']['return'], 2, '');
-			$type = plugincodex_type_to_string($type, 'wiki');
-			$wiki .="<h3>Return Values</h3> \n\n  <ul><li> ({$type}) - {$description} </li></ul>\n\n";
-		}
-
-		/* Since */
-		$since = !empty($this->doc['tags']['since']) ? $this->doc['tags']['since'] : false;
-		if( !empty($since) ) {
-			$wiki .= "\n";
-			if (strlen($since) > 3 && '.0' === substr($since, -2))
-				$since = substr($since, 0, 3);
-
-			$wiki .= $this->compile_wiki_section(sprintf('<h3>%s</h3>',__('Change Log','plugincodexgen')),__("Since:",'plugincodexgen')." {$since}");
 		}
 
 		/* Location */

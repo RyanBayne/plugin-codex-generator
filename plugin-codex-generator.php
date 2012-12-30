@@ -5,7 +5,7 @@ Plugin URI: http://stephenharris.info
 Description: Plug-in Codex Generator generates documentation pages based on sourcecode comments
 Author: Stephen Harris
 Author URI: http://stephenharris.info
-Version: 1.0.4
+Version: 1.0.5
 Text Domain: plugincodexgen
 License Notes: GPLv2 or later
 */
@@ -63,6 +63,7 @@ require PLUGIN_CODEX_GENERATOR_DIR . 'includes/related-function-widget.php';
 require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-pcg-hook.php';
 require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-pcg-function.php';
 require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-function-query.php';
+require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-hook-query.php';
 
 /* Admin only */
 if( is_admin() ){

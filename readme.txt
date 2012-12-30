@@ -4,7 +4,7 @@ Donate link: stephenharris.info
 Tags: documentation
 Requires at least: 3.3
 Tested up to: 3.5
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: GPLv2 or later
 
 Plug-in Codex Generator generates documention for your plug-in based on in-source documentation.
@@ -14,6 +14,8 @@ Plug-in Codex Generator generates documention for your plug-in based on in-sourc
 Creating and maintaining documentation pages for your plug-in can be tedious. This plug-in helps automate that process by generating documentation from sourcode comments. 
 
 **Disclaimer:** I still consider this plug-in to be in its early stages, but I wanted to give it an airing and hopefully encourage others to contribute.
+
+This plug-in is based on the code and ideas in [**Codex Generator**](http://wordpress.org/extend/plugins/codex-generator/) by [Rarst](http://www.rarst.net/).
 
 ### How It Works
 
@@ -115,6 +117,9 @@ The following are supported
 
 
 == Changelog ==
+
+= 1.0.5 =
+* Refactored code. Still needs some work. Updated documentation.
 
 = 1.0.4 =
 * Added MarkDown support for DocBloc descriptions when WP-MarkDown is activated.
