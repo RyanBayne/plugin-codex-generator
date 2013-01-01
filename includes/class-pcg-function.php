@@ -136,9 +136,14 @@ class PCG_Function{
 				foreach( $this->{$type} as $reference) {
 					$link = false;
 
+					/* If the reference is a function, then it must end in '()' */
 					if( $reference != rtrim($reference, '()') ){
 						//Function / method - try to get link
 						if( $reference_post = get_posts(array('post_type'=>'pcg_function','name'=>sanitize_title(rtrim($reference, '()')), 'numberposts'=>1)) )
+							$link = get_permalink($reference_post[0]);
+					}else{
+						/* Else assumed to be a hook - perhaps also a class if they become supported? */
+						if( $reference_post = get_posts(array('post_type'=>'pcg_hook','name'=>sanitize_title(rtrim($reference, '()')), 'numberposts'=>1)) )
 							$link = get_permalink($reference_post[0]);
 					}
 					

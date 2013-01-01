@@ -116,8 +116,42 @@ class Plugin_Codex_Generator_Phpdoc_Parser {
 			            array(__CLASS__,'inline_make_clickable'),
 			            $short_desc);		
 
+
+		/* Replace inline {@see} */
+		$long_desc = preg_replace_callback(
+		        	    "/{@see ([^}]*)}/i",
+			            array(__CLASS__,'add_see_link'),
+			            $long_desc);
+		$short_desc = preg_replace_callback(
+		        	    "/{@see ([^}]*)}/i",
+			            array(__CLASS__,'add_see_link'),
+			            $short_desc);
+
+
 		return compact( 'short_desc', 'long_desc', 'tags' );
 	}
+
+
+	function add_see_link( $replace ){
+
+		$reference = trim($replace[1], '`');
+
+		if( substr($reference,-2) == '()' ){
+			/* Function names must end '()' */
+			$replacement = get_posts(array('post_type'=>'pcg_function','name'=>sanitize_title($reference), 'numberposts'=>1));  
+		}else{
+			/* Else assumed to be a hook - perhaps also a class if they become supported? */
+			$replacement = get_posts(array('post_type'=>'pcg_hook','name'=>sanitize_title($reference), 'numberposts'=>1));
+		}
+
+		if( $replacement ){
+			$url = get_permalink($replacement[0]);
+			$replace[1] = sprintf('<a href="%s">%s</a>', $url, $replace[1]);
+		}
+
+		return $replace[1];
+	}
+
 
 	function inline_make_clickable( $replace ){
 		$replace = explode(' ', $replace[1]);

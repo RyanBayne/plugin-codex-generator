@@ -4,7 +4,7 @@ Donate link: stephenharris.info
 Tags: documentation
 Requires at least: 3.3
 Tested up to: 3.5
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 License: GPLv2 or later
 
 Plug-in Codex Generator generates documention for your plug-in based on in-source documentation.
@@ -30,7 +30,7 @@ To create documentation for you plug-in follow these easy steps:
 
 The content of the generated posts will be automatically overwritten each time you 'regenerate' the documentation. A second editor is provided for 'persistant' information which is not overwritten. You can use this, for instance, to include extra information or examples.
 
-**Functions with the tags @ignore or '@access private' are ignored by the plug-in**
+**Functions with the tags @ignore or '@access private' are ignored by the plug-in.** `@access private` function will not be ignored in the future, but labelled as private. `@ignore` is the recommended method for telling the plug-in to ignore a function.
 
 Hooks are provided. In fact you can view the available hooks by going to the 'hooks' page and selecting Plug-in Codex Generator from the screen options. These hooks include a couple of filters that allow you to add or remove files that are parsed. 'Whitelisting' the plug-in files you want parsed will generally improve performance (see the FAQ).
 
@@ -56,7 +56,7 @@ The following is an incomplete list of known bugs or limitations - feel free to 
 == Frequently Asked Questions ==
 
 = Can I use Markdown in the DocBloc? =
-Yes - if you have [WP-MarkDown](http://wordpress.org/extend/plugins/wp-markdown/) activated - the description part of a docbloc will support MarkDown. You should ensure each line of the description begins with an aesterix and then a space (`* `).
+Yes - if you have [WP-MarkDown](http://wordpress.org/extend/plugins/wp-markdown/) activated - the description part of a docbloc will support MarkDown. You should ensure each line of the description begins with (an optional space), then an aesterix and then a space.
 
 
 = The generated documentation is incomplete or looks mess - what went wrong? =
@@ -107,9 +107,10 @@ The following are supported
 
 * `@param` and * `@return`
 * `@deprecated` - it's recommended that you use `@see` to denote the replacement
-* `@see` - note if using `@deprecated` then the first instance of `@see` will be assumed to be the replacement function.
+* `@see` - note if using `@deprecated` then the first instance of `@see` will be assumed to be the replacement function. The plug-in will also try to 'auto-link' to objects reference by `@see`. For this reason you should append function names with `()`.
 * `@since`
-* `@uses` and * `@used-by`
+* `@uses` and 
+* `@used-by`
 * `@link` - this is also supported inline: `{@link url descriptoin}` e.g. `{@link www.example.com Example Link}`
 * `@package`
 * `@ignore` - to ignore the function
@@ -117,6 +118,9 @@ The following are supported
 
 
 == Changelog ==
+
+= 1.0.6 =
+* Auto-link @see elements (tags and in-line). Function names should end with `()`.
 
 = 1.0.5 =
 * Refactored code. Still needs some work. Updated documentation.
