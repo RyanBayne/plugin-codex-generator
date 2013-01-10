@@ -9,7 +9,7 @@
   
 **Tested up to:** 3.5
   
-**Stable tag:** 1.0.6
+**Stable tag:** 1.0.7
   
 **License:** GPLv2 or later
   
@@ -20,9 +20,9 @@ Plug-in Codex Generator generates documention for your plug-in based on in-sourc
 
 Creating and maintaining documentation pages for your plug-in can be tedious. This plug-in helps automate that process by generating documentation from sourcode comments. 
 
-**Disclaimer:** I still consider this plug-in to be in its early stages, but I wanted to give it an airing and hopefully encourage others to contribute.
+**Example:** See this plug-in in action [here](http://wp-event-organiser.com/documentation/function-reference/)
 
-This plug-in is based on the code and ideas in [**Codex Generator**](http://wordpress.org/extend/plugins/codex-generator/) by [Rarst](http://www.rarst.net/).
+**Disclaimer:** I still consider this plug-in to be in its early stages, but I wanted to give it an airing and hopefully encourage others to contribute. This plug-in is based on the code and ideas in [**Codex Generator**](http://wordpress.org/extend/plugins/codex-generator/) by [Rarst](http://www.rarst.net/).
 
 ### How It Works
 
@@ -40,6 +40,15 @@ The content of the generated posts will be automatically overwritten each time y
 **Functions with the tags @ignore or '@access private' are ignored by the plug-in.** `@access private` function will not be ignored in the future, but labelled as private. `@ignore` is the recommended method for telling the plug-in to ignore a function.
 
 Hooks are provided. In fact you can view the available hooks by going to the 'hooks' page and selecting Plug-in Codex Generator from the screen options. These hooks include a couple of filters that allow you to add or remove files that are parsed. 'Whitelisting' the plug-in files you want parsed will generally improve performance (see the FAQ).
+
+
+### Widgets & Shortcodes
+
+Currently the plug-in provides the following:
+
+1. **Related Function Widget** - displays only on function pages, lists related functions (as determined by the name).
+2. `[plugin_codex ]` (see FAQ)
+3. `[plugin_codex_search]` - allows users to search the function & hook pages.
 
 
 ### Known Issues
@@ -93,8 +102,8 @@ These list the generated documentation pages (with links) of the functions/hooks
 
 Generally there are files that contain no functions or no functions you wish to be documentated. By whitelisting the files you *do* want parsed, you save on resources. There's a hook for that. It passes the relative (to `wp-content`) file paths of the plug-in, the plug-in being parsed, and also the query arguments. 
 
-      add_filter('plugincodex_relative_plugin_paths', 'myplugin_parse_files',10,3);
-      function myplugin_parse_files($files,$plugin,$args){
+     add_filter('plugincodex_relative_plugin_paths', 'myplugin_parse_files',10,3);
+     function myplugin_parse_files($files,$plugin,$args){
 
           if( $plugin != 'my-plugin/my-plugin.php')
                     return $files;
@@ -104,7 +113,7 @@ Generally there are files that contain no functions or no functions you wish to 
                     'my-plugin/some/path/to/another/file.php',
                ));
           return $files;
-      }
+     }
 
 There is also `plugincodex_absolute_plugin_paths` hook that fires after this and filters the absolute paths. 
 
@@ -125,6 +134,14 @@ The following are supported
 
 
 ## Changelog ##
+
+### 1.0.7 ###
+* Major code refactoring, and re-organisation
+* Hook parsing changed, works through PHP_Reflect (via PCG_PHP_Reflect) 
+* Adds search on hook admin page
+* Adds `[plugin_codex_search]` to search hooks & functions
+* Fixes bug in 'related functions' widget.
+* Adds remote searching for links (i.e. to codex) via wpseek api
 
 ### 1.0.6 ###
 * Auto-link @see elements (tags and in-line). Function names should end with `()`.
