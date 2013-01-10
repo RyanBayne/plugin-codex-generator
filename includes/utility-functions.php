@@ -240,3 +240,51 @@ function plugincodex_remove_from_start( $string, $prefix ){
 
 	return $string;
 }
+
+function plugincodex_find_reference_link($reference, $context = 'unknown'){
+
+	$reference_name = plugincodex_sanitize_function_name($reference);
+	$expires = 24*60*60;
+	$link = false;
+
+	if( substr($reference,-2) == '()' || $context == 'function' ){
+		/* Function names must end with '()' */
+
+		//Check and use cache
+		$reference_links = get_transient('pcg_function-'.$reference_name);
+		if( !$reference_links )
+			$reference_links = array();
+
+		if( isset($reference_links[$reference_name]) ){
+			$link = $reference_links[$reference_name];
+		
+		}else{
+			//Not in transient
+
+			if( $replacement = get_posts(array('post_type'=>'pcg_function','name'=>$reference_name, 'numberposts'=>1)) ){
+				//Found locally
+				$link = get_permalink($replacement[0]);
+
+			}elseif( !$link && plugincodexgen_get_option('remote_url_fetch') ){
+				//Not found locally - check wpseek
+				$response = wp_remote_get('http://api.wpseek.com/?method=wordpress.getfunction&s='.sanitize_title($reference));
+				$body = json_decode(trim(wp_remote_retrieve_body($response),';()'));
+				if( $body && isset($body->codexURI) )
+					$link =$body->codexURI;
+			}
+
+			//Update transient
+			$reference_links[$reference_name] = $link;
+			set_transient('pcg_function-'.$reference_name,$reference_links, $expires);
+		}
+	
+	}else{
+		/* Else assumed to be a hook - perhaps also a class if they become supported? */
+		$replacement = get_posts(array('post_type'=>'pcg_hook','name'=>sanitize_title($reference), 'numberposts'=>1));
+
+		if( $replacement )
+			$link = get_permalink($replacement[0]);
+	}
+
+	return $link;
+}
