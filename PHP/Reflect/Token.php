@@ -1044,3 +1044,119 @@ class PHP_Reflect_Token_DOLLAR extends PHP_Reflect_Token {}
 class PHP_Reflect_Token_CARET extends PHP_Reflect_Token {}
 class PHP_Reflect_Token_TILDE extends PHP_Reflect_Token {}
 class PHP_Reflect_Token_BACKTICK extends PHP_Reflect_Token {}
+
+class PHP_Reflect_Token_WPHOOKS extends PHP_Reflect_TokenWithArgument
+{
+
+    protected $arguments;
+    protected $name;
+
+   public function getHooktype()
+    {
+	return ( $this->tokenStream[$this->id][1] == 'apply_filters'  ? 'filter' : 'action' );
+    }
+    public function getName()
+    {
+
+        if ($this->name !== NULL) {
+            return $this->name;
+        }
+
+	$i=2;
+	//Expect "add_action(". We're at add_action, skip to after opening bracket.
+
+	while( $this->tokenStream[$this->id+$i][0] != 'T_COMMA' && $this->tokenStream[$this->id+$i+1][0] != 'T_SEMICOLON'){
+		if( $this->tokenStream[$this->id+$i][0] != 'T_WHITESPACE' )
+			$this->name .= trim($this->tokenStream[$this->id+$i][1],"'\"");
+		$i++;
+	}
+
+        return $this->name;
+    }
+
+    public function getArguments()
+    {
+        if ($this->arguments !== NULL) {
+            return $this->arguments;
+        }
+
+        $this->arguments = array();
+        $i               = $this->id + 1;
+        $nextArgument    = array();
+
+	//Expect "add_action(hookname,args)". We're at add_action, skip to after opening bracket.
+	while( isset($this->tokenStream[$i]) && $this->tokenStream[$i][0] != 'T_COMMA' && $this->tokenStream[$i][0] != 'T_SEMICOLON' ){
+		$i++;
+		if( $this->tokenStream[$i][0] == 'T_SEMICOLON' )
+			return $this->arguments;
+	}	
+	$i++;  
+
+        while (isset($this->tokenStream[$i])
+            && $this->tokenStream[$i][0] != 'T_CLOSE_BRACKET'
+        ) {
+            if ($this->tokenStream[$i][0] == 'T_WHITESPACE'
+                || $this->tokenStream[$i][0] == 'T_OPEN_BRACKET'
+            ) {
+                // do nothing
+
+
+            } elseif (in_array($this->tokenStream[$i][0], array('T_STRING', 'T_ARRAY'))
+	    	&&  $this->tokenStream[$i+1][0] == 'T_OPEN_BRACKET' 
+            ) {
+		
+                    if ($this->tokenStream[$i][0] == 'T_STRING') {
+                        $nextArgument['typeHint'] = 'mixed';
+                        $nextArgument['name']     = $this->tokenStream[$i][1];
+                    } else {
+                        $nextArgument['typeHint'] = 'array';
+                    }
+
+                    // allow for anything inside the brackets
+		  $open_brackets  =0;
+		  $close_brackets  =0;
+                    while ( isset($this->tokenStream[$i][0]) && ($open_brackets != $close_brackets || $open_brackets == 0 ) ) {
+                        $i++;
+			if( $this->tokenStream[$i][0] == 'T_CLOSE_BRACKET' )
+				$close_brackets++;
+
+			if( $this->tokenStream[$i][0] == 'T_OPEN_BRACKET' )
+				$open_brackets++;
+                    }
+
+		$this->arguments[] = $nextArgument;
+		$nextArgument=array();
+
+            } elseif ($this->tokenStream[$i][0] == 'T_EQUAL') {
+                // just do nothing - next tokens will contain the defaultValue
+
+
+            } elseif ($this->tokenStream[$i][0] == 'T_VARIABLE') {
+
+		$nextArgument['name'] = $this->tokenStream[$i][1];
+
+		if( isset($this->tokenStream[$i+1][1]) &&  '->' == $this->tokenStream[$i+1][1] ){
+			$i++;
+			$nextArgument['name'] .= $this->tokenStream[$i][1];
+			$i++;
+			$nextArgument['name'] .= $this->tokenStream[$i][1];
+		}			
+
+		$this->arguments[] = $nextArgument;
+		
+            } elseif (
+                ($this->tokenStream[$i][0] == 'T_STRING') ||
+                ($this->tokenStream[$i][0] == 'T_CONSTANT_ENCAPSED_STRING') ||
+                ($this->tokenStream[$i][0] == 'T_LNUMBER')
+            ) {
+                $this->arguments[] = array('defaultValue' => $this->tokenStream[$i][1] );
+
+            }
+
+            $i++;
+        }
+
+        return $this->arguments;
+    }
+
+}

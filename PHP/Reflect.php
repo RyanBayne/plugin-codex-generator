@@ -100,9 +100,9 @@ class PHP_Reflect implements ArrayAccess
     );
 
     /**
-     * @var array
+     * @protected array
      */
-    var $tokens = array();
+    protected $tokens = array();
 
     /**
      * @var array
