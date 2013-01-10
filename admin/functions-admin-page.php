@@ -84,7 +84,7 @@ class PCG_Admin_Page {
 	static function admin_print_styles() {
 
 		?><style type="text/css">
-		#functions-search-input { width: 200px; }
+		#search-input { width: 200px; }
 		.top .reset { margin: 0 5px; }
 		.ac_results{ min-width: 197px; }
 		.tablenav p.search-box { float: left; }
@@ -101,10 +101,13 @@ class PCG_Admin_Page {
 	static function admin_print_footer_scripts() {
 
 		?><script type="text/javascript">
-		jQuery(document).ready(function($) { $('#functions-search-input').suggest(ajaxurl + '?action=plugin_codex_gen_suggest'); });
+		jQuery(document).ready(function($) { 
+			$('#search-input').suggest( ajaxurl + '?action=plugin_codex_gen_suggest_hook', 
+				{ onSelect: function(e){ $('#suggest-submit').trigger('click')} }
+			); 
+			});
 		</script><?php
 	}
-
 	
 	/**
 	 * Outputs plugin's admin page.

@@ -26,6 +26,7 @@ License Notes: GPLv2 or later
 //Define constants
 define('PLUGIN_CODEX_GENERATOR_LINK', add_query_arg(array('page'=> 'plugincodexgen','post_type'=>'pcg_function'), admin_url('edit.php')));
 define('PLUGIN_CODEX_GENERATOR_DIR', plugin_dir_path(__FILE__ ));
+define('PLUGIN_CODEX_GENERATOR_URL',plugin_dir_url(__FILE__ ));
 
 /**
 * Retrieve plug-in option
@@ -44,6 +45,7 @@ function plugincodexgen_get_option($option,$default=false){
 	'supports'=>array('title','editor'),//What the post types pcg_hook & pcg_function support
 	'function_rewrite'=>'documentation/function',
 	'hook_rewrite'=>'documentation/hook',
+	'remote_url_fetch' => true,
       );
       $options = get_option('plugin_codex_gen',$defaults);
       $options = wp_parse_args( $options, $defaults );
@@ -56,20 +58,22 @@ function plugincodexgen_get_option($option,$default=false){
 
 /* Include functions */
 require PLUGIN_CODEX_GENERATOR_DIR . 'includes/utility-functions.php';
+
+/* Shortcodes and Widgets */
 require PLUGIN_CODEX_GENERATOR_DIR . 'includes/shortcode-handler.php';
 require PLUGIN_CODEX_GENERATOR_DIR . 'includes/related-function-widget.php';
 
 /* Hook, Functions & Queries */
+require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-pcg-query.php';
 require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-pcg-hook.php';
 require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-pcg-function.php';
-require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-function-query.php';
-require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-hook-query.php';
 
 /* Admin only */
 if( is_admin() ){
 	require PLUGIN_CODEX_GENERATOR_DIR . 'admin/actions.php';
 	require PLUGIN_CODEX_GENERATOR_DIR . 'admin/functions-admin-page.php';
 	require PLUGIN_CODEX_GENERATOR_DIR . 'admin/hooks-admin-page.php';
+	require PLUGIN_CODEX_GENERATOR_DIR . 'admin/class-pcg-admin-table.php';
 	require PLUGIN_CODEX_GENERATOR_DIR . 'admin/class-functions-table.php';
 	require PLUGIN_CODEX_GENERATOR_DIR . 'admin/class-hooks-table.php';
 }
@@ -78,10 +82,9 @@ if( is_admin() ){
 require PLUGIN_CODEX_GENERATOR_DIR . 'includes/cpt.php';
 
 /* Libraries */
-require PLUGIN_CODEX_GENERATOR_DIR . 'includes/class-phpdoc-parser.php';
 require PLUGIN_CODEX_GENERATOR_DIR.'PHP/Reflect/Autoload.php';
+require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-pcg-php-reflect.php';
 
-/* Widget */
 /**
  * Initialises widget
  * @since 1.0

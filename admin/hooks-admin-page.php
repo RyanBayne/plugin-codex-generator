@@ -46,7 +46,9 @@ class PCG_Admin_Page_Hooks {
 	 */
 	static function load() {
 
+		self::add_method('admin_enqueue_scripts');
 		self::add_method('admin_print_styles');
+		self::add_method('admin_print_footer_scripts');
 
 		//Add screen option
 		add_screen_option('per_page', array('label' => __('hooks', 'plugincodexgen'), 'default' => 15));
@@ -70,13 +72,21 @@ class PCG_Admin_Page_Hooks {
 	}
 
 
+		/**
+	 * Enqueues suggest.
+	 */
+	static function admin_enqueue_scripts() {
+		wp_enqueue_script('suggest');
+		add_thickbox();
+	}
+
 	/**
 	 * Outputs bit of CSS for suggest dropdown.
 	 */
 	static function admin_print_styles() {
 
 		?><style type="text/css">
-		#functions-search-input { width: 200px; }
+		#search-input { width: 200px; }
 		.top .reset { margin: 0 5px; }
 		.ac_results{ min-width: 197px; }
 		.tablenav p.search-box { float: left; }
@@ -86,7 +96,20 @@ class PCG_Admin_Page_Hooks {
 		.bottom .button { float:left; margin: 5px 0; }
 	</style><?php
 	}
-	
+
+	/**
+	 * Sets up suggest.
+	 */
+	static function admin_print_footer_scripts() {
+
+		?><script type="text/javascript">
+		jQuery(document).ready(function($) { 
+			$('#search-input').suggest( ajaxurl + '?action=plugin_codex_gen_suggest_hook', 
+				{ onSelect: function(e){ $('#suggest-submit').trigger('click')} }
+			); 
+			});
+		</script><?php
+	}
 	/**
 	 * Outputs plugin's admin page.
 	 */

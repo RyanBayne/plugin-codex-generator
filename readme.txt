@@ -17,6 +17,8 @@ Creating and maintaining documentation pages for your plug-in can be tedious. Th
 
 This plug-in is based on the code and ideas in [**Codex Generator**](http://wordpress.org/extend/plugins/codex-generator/) by [Rarst](http://www.rarst.net/).
 
+**Example:** See this plug-in in action [here](http://wp-event-organiser.com/documentation/function-reference/)
+
 ### How It Works
 
 To create documentation for you plug-in follow these easy steps:
