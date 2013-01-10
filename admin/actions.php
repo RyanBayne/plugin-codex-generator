@@ -20,8 +20,12 @@ add_action('plugincodexgen_action-generate-documentation','_plugincodexgen_gener
 add_action('plugincodexgen_action-generate-hook-documentation','_plugincodexgen_generate_hook_documentation');
 
 /* Ajax actions */
-add_action('wp_ajax_plugin_codex_gen_suggest', '_plugincodexgen_function_suggest');
-add_action('wp_ajax_plugin_codex_gen_wiki',  '_plugincodexgen_function_wiki');
+add_action('wp_ajax_plugin_codex_gen_suggest_function', '_plugincodexgen_suggest');
+add_action('wp_ajax_plugin_codex_gen_suggest_hook', '_plugincodexgen_suggest');
+add_action('wp_ajax_plugin_codex_gen_wiki',  '_plugincodexgen_generate_wiki');
+
+add_action('wp_ajax_plugin_codex_search',  '_plugincodexgen_search');
+add_action('wp_ajax_nopriv_plugin_codex_search',  '_plugincodexgen_search');
 
 
 /**
@@ -31,7 +35,7 @@ add_action('wp_ajax_plugin_codex_gen_wiki',  '_plugincodexgen_function_wiki');
  * @ignore
  * @access private
  */
-function _plugincodexgen_function_suggest(){
+function _plugincodexgen_suggest(){
 
 	if( !current_user_can('manage_options') )
 		die;
@@ -39,13 +43,21 @@ function _plugincodexgen_function_suggest(){
 	if( empty($_REQUEST['q']) )
 		die;
 
-	$search = plugincodex_get_functions( array(
+	if( current_filter() == 'wp_ajax_plugin_codex_gen_suggest_function' ){
+		$search = plugincodex_get_functions( array(
 					's' => plugincodex_sanitize_function_name($_REQUEST['q']),
 					 'orderby' => 'match',
 					'number' => 15,
 				));
-	$functions = wp_list_pluck($search,'name');
-	echo implode("\n", $functions);
+	}else{
+		$search = plugincodex_get_hooks( array(
+					's' => plugincodex_sanitize_function_name($_REQUEST['q']),
+					 'orderby' => 'match',
+					'number' => 15,
+				));
+	}
+	$items = wp_list_pluck($search,'name');
+	echo implode("\n", $items);
 	die;
 }
 
@@ -56,17 +68,22 @@ function _plugincodexgen_function_suggest(){
  * @ignore
  * @access private
  */
-function  _plugincodexgen_function_wiki() {
+function  _plugincodexgen_generate_wiki() {
 
 	if( !current_user_can('manage_options') )
 		die;
 
-	if( empty($_REQUEST['function']) )
-		die;
+	if( empty($_REQUEST['function']) && empty($_REQUEST['hook']) )
+		wp_die('');
 
-	$function = plugincodex_sanitize_function_name($_REQUEST['function']);
+	if( !empty($_REQUEST['function']) ){
+		$function = plugincodex_sanitize_function_name($_REQUEST['function']);
+		$data = array_pop( plugincodex_get_functions( array('functions__in'=>array($function)) ) );
+	}else{
+		$hook = plugincodex_sanitize_function_name($_REQUEST['hook']);
+		$data = array_pop( plugincodex_get_hooks( array('hooks__in'=>array($hook)) ) );
+	}
 
-	$data = array_pop( plugincodex_get_functions( array('functions__in'=>array($function)) ) );
 	$wiki = $data->get_wiki();
 
 	printf('<hr><h1> %s </h1><hr>',__('Preview','plugincodexgen'));
@@ -200,4 +217,51 @@ function _plugincodexgen_generate_hook_documentation(){
 
 	wp_redirect(add_query_arg(array('hooks__in'=>false,'plugincodexgen'=> false,'_pcgpnonce'=>false)));
 	exit();
+}
+
+function _plugincodexgen_search(){
+		
+		$term = trim(esc_attr($_GET["term"]));
+
+		$query = new WP_Query(array(
+			'post_type'=>array('pcg_function', 'pcg_hook',/*'page','post'*/),
+			'order'=>'asc',
+			's'=>$term,
+			'numberposts'=> 15,		
+		));
+
+		$results = array();
+		if( $query->have_posts() ):
+			while( $query->have_posts() ): $query->the_post();
+
+				switch( get_post_type() ):
+					case 'page':
+						$category = 'Page';
+					break;
+					case 'post':
+						$category = 'Post';
+					break;
+					case 'pcg_hook':
+						$category = 'Hook';
+					break;
+					case 'pcg_function':
+						$terms = get_the_terms( get_the_ID(), 'pcg_package');
+						if( $terms ){
+							$package = array_pop($terms);
+							$category = $package->name;
+						}
+					break;
+					default:
+						$category ='';
+				endswitch;
+
+				$results[] = array( 'label'=> get_the_title(), 'category' => ucfirst($category), 'url' => get_permalink());
+			endwhile;
+		endif;
+		wp_reset_postdata();
+
+		//echo JSON to page  
+		$response = json_encode($results);
+		echo $response;  
+		exit;
 }
