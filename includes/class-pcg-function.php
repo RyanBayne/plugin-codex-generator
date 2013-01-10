@@ -57,9 +57,8 @@ class PCG_Function{
 			//Check if replacement is given.
 			if( isset($this->deprecated['replacement']) ){
 				//Replacement given, try to find a link to this function's page
-				if(  $replacement = get_posts(array('post_type'=>'pcg_function','name'=>sanitize_title($this->deprecated['replacement']), 'numberposts'=>1))  ){
-					$url = get_permalink($replacement[0]);
-					$wiki .= ' '.sprintf(__("Use <a href='%s'><code>%s</code></a> instead",'plugincodexgen')."\n\n", $url, $this->deprecated['replacement'].'()');					
+				if(  $link = plugincodex_find_reference_link($this->deprecated['replacement'],'function')  ){
+					$wiki .= ' '.sprintf(__("Use <a href='%s'><code>%s</code></a> instead",'plugincodexgen')."\n\n", $link, $this->deprecated['replacement'].'()');					
 				}else{
 					$wiki .= ' '.sprintf(__("Use <code>%s</code> instead",'plugincodexgen')."\n\n", $this->deprecated['replacement'].'()');
 				}
@@ -133,24 +132,17 @@ class PCG_Function{
 				if( !$this->{$type} )
 					continue;
 
-				foreach( $this->{$type} as $reference) {
+				foreach( $this->{$type} as $text) {
 					$link = false;
 
+					$text = explode(' ',$text);
+					$reference =array_shift($text);
+
 					/* If the reference is a function, then it must end in '()' */
-					if( $reference != rtrim($reference, '()') ){
-						//Function / method - try to get link
-						if( $reference_post = get_posts(array('post_type'=>'pcg_function','name'=>sanitize_title(rtrim($reference, '()')), 'numberposts'=>1)) )
-							$link = get_permalink($reference_post[0]);
-					}else{
-						/* Else assumed to be a hook - perhaps also a class if they become supported? */
-						if( $reference_post = get_posts(array('post_type'=>'pcg_hook','name'=>sanitize_title(rtrim($reference, '()')), 'numberposts'=>1)) )
-							$link = get_permalink($reference_post[0]);
-					}
-					
-					if( $link )
-						$wiki .= sprintf("<li> %s: <a href='%s'><code>%s</code></a></li>\n",$label, $link, esc_html($reference));
+					if( $link =  plugincodex_find_reference_link($reference) )
+						$wiki .= sprintf("<li> %s: <a href='%s'><code>%s</code></a> %s</li>\n",$label, $link, esc_html($reference), implode(' ', $text));
 					else
-						$wiki .= sprintf("<li> %s: <code>%s</code></li>\n", $label, esc_html($reference));
+						$wiki .= sprintf("<li> %s: <code>%s</code> %s</li>\n", $label, esc_html($reference), implode(' ', $text));
 				}
 			}
 
