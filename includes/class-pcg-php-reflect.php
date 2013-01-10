@@ -6,6 +6,13 @@ class PCG_PHP_Reflect extends PHP_Reflect{
 
 
 	function __construct($args=array()) {
+
+		$args = array_merge($args, 
+				array(
+		  		'containers'=>array('wp-hook' => 'wphooks'),
+				'properties'=>array('wp-hook'=>array('line', 'docblock', 'arguments', 'hooktype'))
+			));
+		
 		parent::__construct($args);
 		$this->parserToken['T_WPHOOK'] = array('PHP_Reflect_Token_WPHOOKS', array($this, 'parseToken'));
     	}

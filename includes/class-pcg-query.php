@@ -79,7 +79,7 @@ class PCG_Query {
 			return false;
 		}
 
-		if( !empty($this->args['type']) && $object->type !=$object['type'] ){
+		if( !empty($this->args['type']) && $object->type !=$this->args['type'] ){
 			return false;
 		}
 
@@ -331,10 +331,7 @@ class PCG_Hook_Query extends PCG_Query{
 
 		foreach( $files as $file ){
 
-			$reflect = new PCG_PHP_Reflect(array(
-		  		'containers'=>array('wp-hook' => 'wphooks'),
-				'properties'=>array('wp-hook'=>array('line', 'docblock', 'arguments', 'hooktype'))
-			));
+			$reflect = new PCG_PHP_Reflect();
 			$reflect->scan($file);
 			$parsed_hooks = $reflect->getWphooks();
 			if( !$parsed_hooks ) 

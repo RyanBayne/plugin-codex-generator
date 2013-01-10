@@ -21,7 +21,6 @@ class Plugin_Codex_Generator_Functions_Table extends PCG_Admin_Table {
 		$offset = $current_page > 1 ? $per_page*($current_page-1) : 0;
 
 		$query = array(
-			'type'=>$this->_args['singular'],
 			'number' => $per_page,
 			'return' => 'array',
 			'offset' => $offset,
