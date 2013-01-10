@@ -42,6 +42,9 @@ class PCG_Related_Function_Widget extends WP_Widget {
 		if( $posts ):
 
 			$html = $before_widget; 
+
+			$widget = apply_filters('widget_title', $title, $instance, $this->id_base);
+
 			if ( $title ) 
 				$html .= $before_title . $title . $after_title; 
 
@@ -67,6 +70,8 @@ class PCG_Related_Function_Widget extends WP_Widget {
 
 		$cache[$args['widget_id']] = apply_filters('plugincodex_related_functions_widget', $html, $args, $instance);
 		wp_cache_set('pcg-related-function-widgets', $cache, 'widget');
+
+		echo $html;
 	}
 
 	function get_related_by( $post_id, $tax, $args=array() ){
