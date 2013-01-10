@@ -242,7 +242,11 @@ function _plugincodexgen_search(){
 						$category = 'Post';
 					break;
 					case 'pcg_hook':
-						$category = 'Hook';
+						$terms = get_the_terms( get_the_ID(), 'pcg_hook_type');
+						if( $terms ){
+							$package = array_pop($terms);
+							$category = 'Hooks ('.$package->name.')';
+						}
 					break;
 					case 'pcg_function':
 						$terms = get_the_terms( get_the_ID(), 'pcg_package');
