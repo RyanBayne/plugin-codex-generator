@@ -17,7 +17,7 @@ add_action('init', 'plugincodexgen_init',11);
 
 /* Generate function/hook documentation */
 add_action('plugincodexgen_action-generate-documentation','_plugincodexgen_generate_documentation');
-add_action('plugincodexgen_action-generate-hook-documentation','_plugincodexgen_generate_hook_documentation');
+
 
 /* Ajax actions */
 add_action('wp_ajax_plugin_codex_gen_suggest_function', '_plugincodexgen_suggest');
@@ -110,8 +110,17 @@ function _plugincodexgen_generate_documentation(){
 
 	check_admin_referer('plugincodexgen-bulk-action', '_pcgpnonce');
 
-	/* Set up query */
-	$functions__in = isset($_GET['function']) ? $_GET['function'] : array();
+	if( isset($_GET['function'])  ){
+		$functions__in = $_GET['function'];
+		_plugincodexgen_generate_function_documentation($functions__in);
+
+	}elseif( isset($_GET['hook'])  ){
+		$hooks__in = $_GET['hook'];
+		_plugincodexgen_generate_hook_documentation($hooks__in);
+	}
+}
+
+function _plugincodexgen_generate_function_documentation($functions__in){
 
 	$query['functions__in'] = array_map('trim',$functions__in);
 	if( !empty($_GET['path']) )
@@ -168,12 +177,9 @@ function _plugincodexgen_generate_documentation(){
  * @ignore
  * @access private
  */
-function _plugincodexgen_generate_hook_documentation(){
-
-	check_admin_referer('plugincodexgen-bulk-action', '_pcgpnonce');
+function _plugincodexgen_generate_hook_documentation( $hooks__in ){
 
 	/* Set up query */
-	$hooks__in = isset($_GET['hook']) ? $_GET['hook'] : array();
 	$query['hooks__in'] = array_map('trim',$hooks__in);
 	if( !empty($_GET['path']) )
 		$query['path'] = $_GET['path'];
