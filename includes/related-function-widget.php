@@ -1,4 +1,14 @@
 <?php
+/**
+ * Initialises widget
+ * @since 1.0
+ * @ignore
+ * @access private
+*/
+function _plugincodexgen_widgets_init(){
+	register_widget('PCG_Related_Function_Widget');
+}
+add_action( 'widgets_init', '_plugincodexgen_widgets_init');
 
 class PCG_Related_Function_Widget extends WP_Widget {
 

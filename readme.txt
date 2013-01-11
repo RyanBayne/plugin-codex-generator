@@ -4,7 +4,7 @@ Donate link: stephenharris.info
 Tags: documentation
 Requires at least: 3.3
 Tested up to: 3.5
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: GPLv2 or later
 
 Plug-in Codex Generator generates documention for your plug-in based on in-source documentation.
@@ -127,6 +127,10 @@ The following are supported
 
 
 == Changelog ==
+
+= 1.0.8 =
+* Fixes hook docs generation bug introduced in 1.0.7
+* Fixes hook-path filter bug
 
 = 1.0.7 =
 * Major code refactoring, and re-organisation

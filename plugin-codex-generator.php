@@ -5,7 +5,7 @@ Plugin URI: http://stephenharris.info
 Description: Plug-in Codex Generator generates documentation pages based on sourcecode comments
 Author: Stephen Harris
 Author URI: http://stephenharris.info
-Version: 1.0.7
+Version: 1.0.8
 Text Domain: plugincodexgen
 License Notes: GPLv2 or later
 */
@@ -27,34 +27,6 @@ License Notes: GPLv2 or later
 define('PLUGIN_CODEX_GENERATOR_LINK', add_query_arg(array('page'=> 'plugincodexgen','post_type'=>'pcg_function'), admin_url('edit.php')));
 define('PLUGIN_CODEX_GENERATOR_DIR', plugin_dir_path(__FILE__ ));
 define('PLUGIN_CODEX_GENERATOR_URL',plugin_dir_url(__FILE__ ));
-
-/**
-* Retrieve plug-in option
-*
-* Since there is limited UI you can alter options by using the plugincodexgen_option_{option}
-* filter. 
-* @since 1.0
-*
-* @param string $option The option key
-* @param mixed $default The value to use if the option doesn't exist. Default: false.
-* @return mixed The option value
-*/
-function plugincodexgen_get_option($option,$default=false){
-
-      $defaults = array(
-	'supports'=>array('title','editor'),//What the post types pcg_hook & pcg_function support
-	'function_rewrite'=>'documentation/function',
-	'hook_rewrite'=>'documentation/hook',
-	'remote_url_fetch' => true,
-      );
-      $options = get_option('plugin_codex_gen',$defaults);
-      $options = wp_parse_args( $options, $defaults );
-
-      if( !isset($options[$option]) )
-		return apply_filters( 'plugincodexgen_default_option_' . $option, $default );
-
-	return apply_filters( 'plugincodexgen_option_' . $option, $options[$option]);
-}
 
 /* Include functions */
 require PLUGIN_CODEX_GENERATOR_DIR . 'includes/utility-functions.php';
@@ -84,17 +56,6 @@ require PLUGIN_CODEX_GENERATOR_DIR . 'includes/cpt.php';
 /* Libraries */
 require PLUGIN_CODEX_GENERATOR_DIR.'PHP/Reflect/Autoload.php';
 require PLUGIN_CODEX_GENERATOR_DIR .'includes/class-pcg-php-reflect.php';
-
-/**
- * Initialises widget
- * @since 1.0
- * @ignore
- * @access private
-*/
-function _plugincodexgen_widgets_init(){
-	register_widget('PCG_Related_Function_Widget');
-}
-add_action( 'widgets_init', '_plugincodexgen_widgets_init');
 
 /* Activate / Deactivate */
 register_activation_hook(__FILE__,'_plugincodexgen_install'); 

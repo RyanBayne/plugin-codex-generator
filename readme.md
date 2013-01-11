@@ -9,7 +9,7 @@
   
 **Tested up to:** 3.5
   
-**Stable tag:** 1.0.7
+**Stable tag:** 1.0.8
   
 **License:** GPLv2 or later
   
@@ -121,19 +121,24 @@ There is also `plugincodex_absolute_plugin_paths` hook that fires after this and
 
 The following are supported
 
-* `@param` and * `@return`
+* `@param` and 
+* `@return`
 * `@deprecated` - it's recommended that you use `@see` to denote the replacement
 * `@see` - note if using `@deprecated` then the first instance of `@see` will be assumed to be the replacement function. The plug-in will also try to 'auto-link' to objects reference by `@see`. For this reason you should append function names with `()`.
 * `@since`
 * `@uses` and 
 * `@used-by`
-* `@link` - this is also supported inline:** `{@link url descriptoin}` e.g. `{@link www.example.com Example Link}`
+* `@link` - this is also supported inline: `{@link url descriptoin}` e.g. `{@link www.example.com Example Link}`
 * `@package`
 * `@ignore` - to ignore the function
 * `@access private` - current the parser ignores private functions too
 
 
 ## Changelog ##
+
+### 1.0.8 ###
+* Fixes hook docs generation bug introduced in 1.0.7
+* Fixes hook-path filter bug
 
 ### 1.0.7 ###
 * Major code refactoring, and re-organisation
