@@ -228,49 +228,7 @@ class PCG_Function_Query extends PCG_Query {
 
 		return $_functions;
 	}
-
-	function get_page_package(){
-
-			//Hack to get page-level doc: reflect::tokens has been changed from protected to achieve this
-			$tokens = $this->reflect->tokens;
-
-			$docblocs = 0;
-			$docComment ='';
-			foreach( $tokens as $token ){
-
-				if( 'T_DOC_COMMENT' == $token[0] ){
-					if( 0 == $docblocs )
-						$docComment = $token[1];
-		
-					$docblocs++;
-				}	
-		
-				if( 'T_FUNCTION' == $token[0] )
-					break;
-			}
-
-			if( $docblocs > 1 ){
-				$result = array(
-			            'fullPackage' => '',
-			            'package'     => '',
-			            'subpackage'  => ''
-				);
-				if (preg_match('/@package[\s]+([\.\-\w]+)/', $docComment, $matches)) {
-					$result['package']     = $matches[1];
-					$result['fullPackage'] = $matches[1];
-	        		}
-
-				if (preg_match('/@subpackage[\s]+([\.\-\w]+)/', $docComment, $matches)) {
-					$result['subpackage']   = $matches[1];
-					$result['fullPackage'] .= '.' . $matches[1];
-	        		}
-				return $result['package'];		
-			}
-			return false;
-	}
-
 }
-
 
 /**
  * Retrieves hooks parsed from the plug-in files. This does not query the generated hook pages.
