@@ -234,7 +234,7 @@ class PCG_PHP_Reflect extends PHP_Reflect{
 				/* Parse params from PHPReflect and merge with details from the docblock */
 				$hook->parameters = $this->merge_params( $_hook['arguments'], $hook->doc['tags']['param']);		
 
-				$hook->path =$this->filename;
+				$hook->path = plugincodex_sanitize_path($this->filename);
 				$hook->line = $_hook['line'];
 				$hook->location[] = array(
 					'path' => $this->filename,
